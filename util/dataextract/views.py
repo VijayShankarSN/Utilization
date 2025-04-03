@@ -4,6 +4,8 @@ from .data_extraction import extract_data
 
 def home_view(request):
     return HttpResponse("Welcome to the Utilization App!")
+
+
 def extract_data_view(request):
     # Call the data extraction function
     dfs = extract_data()
