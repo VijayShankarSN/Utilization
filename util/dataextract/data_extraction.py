@@ -5,7 +5,7 @@ from datetime import datetime
 
 def extract_data():
     # Path to your Excel file
-    file_path = 'C:/Users/Thrivikram Bhat V/Desktop/Utilization-Thrivikram/Utilization/util/new Utilization Report 14Mar2025.xlsb'
+    file_path = 'new Utilization Report 14Mar2025.xlsb'
 
     # Function to read data from Excel
     def read_data_from_excel(file_path):
@@ -58,6 +58,9 @@ def extract_data():
         return dfs
 
     dfs = create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row)
+
+    dfs['MTD']['Days'] = dfs['MTD'][current_month]/8 
+    dfs['MTD'] = dfs['MTD'].dropna(subset = [current_month]) 
 
     # Print extracted data to the console
     print("WTD DataFrame:")
