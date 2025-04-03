@@ -5,7 +5,7 @@ from .allocation import Allocation
 from .deal import Deal
 from .project_activity import ProjectActivityLog
 from .choices import *
-
+from .utilrepo import UtilizationReport
 __all__ = [
     'Project',
     'Requirement',
