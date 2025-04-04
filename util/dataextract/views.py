@@ -3,15 +3,22 @@ from django.http import HttpResponse
 from .data_extraction import main  # Import the main function from data_extraction.py
 
 def home_view(request):
+    """
+    Home view for the Utilization App.
+    """
     return HttpResponse("Welcome to the Utilization App!")
 
 def extract_data_view(request):
-    # Path to the Excel file (you can make this dynamic if needed)
-    file_path = 'new Utilization Report 14Mar2025.xlsb'
+    """
+    View to extract data from the Excel file and display it as HTML tables.
+    """
+    # Paths to the Excel files
+    file_path = 'new Utilization Report 14Mar2025.xlsb'  # Path to the main Excel file
+    extracted_columns_path = 'extracted_columns.xlsb'  # Path to the extracted columns file
 
     try:
         # Call the main function to extract data
-        dfs = main(file_path)
+        dfs, pivot_df = main(file_path, extracted_columns_path)  # Pass both arguments
 
         # Debugging: Print the shape of the DataFrames
         print("WTD DataFrame shape:", dfs['WTD'].shape)
@@ -20,6 +27,7 @@ def extract_data_view(request):
         # Convert the extracted data (WTD and MTD DataFrames) to HTML tables
         wtd_html = dfs['WTD'].to_html(classes='table table-striped', index=False)
         mtd_html = dfs['MTD'].to_html(classes='table table-striped', index=False)
+        pivot_html = pivot_df.to_html(classes='table table-striped', index=False)
 
         # Combine the HTML tables into a single response
         html_content = f"""
@@ -34,6 +42,8 @@ def extract_data_view(request):
                     {wtd_html}
                     <h1>Extracted MTD Data</h1>
                     {mtd_html}
+                    <h1>Work Type Breakdown (Pivot Table)</h1>
+                    {pivot_html}
                 </div>
             </body>
         </html>
