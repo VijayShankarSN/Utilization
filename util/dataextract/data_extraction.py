@@ -164,10 +164,100 @@ def create_pivot_table(dfs, extracted_df):
         how='left'
     )
     
-    # Reorder columns to put WTD Actual after Resource Email Address
-    cols = ['Resource Email Address', 'WTD Actual', 'Track', 'Billing'] + [col for col in pivot_df.columns 
-            if col not in ['Resource Email Address', 'WTD Actual', 'Track', 'Billing', 'Grand Total']] + ['Grand Total']
-    pivot_df = pivot_df[cols]
+    # Calculate Additional Days based on Billing values
+    def calculate_additional_days(row):
+        billing = row['Billing']  # Use exact value without case conversion
+        
+        # Get WTD Actual and Vacation values
+        wtd_actual_days = row['WTD Actual'] / 8  # Convert hours to days
+        vacation = row.get('Vacation', 0)  # Get Vacation value, default to 0 if not present
+        
+        # Print debug information
+        print(f"\nDebug for {row['Resource Email Address']}:")
+        print(f"Billing: {billing}")
+        print(f"WTD Actual (in days): {wtd_actual_days}")
+        print(f"Vacation: {vacation}")
+        
+        # Only calculate Additional Days for Billing and Partial cases
+        if billing == 'Billing':
+            # Step 1: Check if WTD Actual/8 = 5
+            if abs(wtd_actual_days - 5.0) < 0.0001:  # Using small epsilon for float comparison
+                print("WTD Actual/8 = 5.0")
+                return 0
+                
+            # Step 2: Check if WTD Actual/8 + Vacation = 5
+            total_days = wtd_actual_days + vacation
+            print(f"WTD Actual/8 + Vacation = {total_days}")
+            
+            if abs(total_days - 5.0) < 0.0001:  # Using small epsilon for float comparison
+                print("WTD Actual/8 + Vacation = 5.0")
+                return 0
+            else:
+                # Step 3: Calculate Additional Days = 5 - (WTD Actual/8 + Vacation)
+                additional = max(0, 5.0 - total_days)
+                print(f"Additional Days = 5.0 - {total_days} = {additional}")
+                return additional
+        elif billing == 'Partial':
+            # Step 1: Check if WTD Actual/8 = 2.5
+            if abs(wtd_actual_days - 2.5) < 0.0001:  # Using small epsilon for float comparison
+                print("WTD Actual/8 = 2.5")
+                return 0
+                
+            # Step 2: Check if WTD Actual/8 + Vacation = 2.5
+            total_days = wtd_actual_days + vacation
+            print(f"WTD Actual/8 + Vacation = {total_days}")
+            
+            if abs(total_days - 2.5) < 0.0001:  # Using small epsilon for float comparison
+                print("WTD Actual/8 + Vacation = 2.5")
+                return 0
+            else:
+                # Step 3: Calculate Additional Days = 2.5 - (WTD Actual/8 + Vacation)
+                additional = max(0, 2.5 - total_days)
+                print(f"Additional Days = 2.5 - {total_days} = {additional}")
+                return additional
+        else:
+            # For all other cases, Additional Days is 0
+            return 0
+    
+    # Add Additional Days column
+    pivot_df['Additional Days'] = pivot_df.apply(calculate_additional_days, axis=1)
+    
+    # Add Status column based on Billing values and Additional Days
+    def determine_status(row):
+        billing = row['Billing']  # Use exact value without case conversion
+        additional_days = row['Additional Days']
+        
+        # For Billing and Partial cases
+        if billing in ['Billing', 'Partial']:
+            return 'Open' if additional_days > 0 else 'Closed'
+        # For all other cases
+        else:
+            return 'Closed'
+    
+    pivot_df['Status'] = pivot_df.apply(determine_status, axis=1)
+    
+    # Define the exact column order
+    column_order = [
+        'Resource Email Address',
+        'WTD Actual',
+        'Track',
+        'Billing',
+        'Status',
+        'Additional Days',
+        'Administrative',
+        'Billable Hours',
+        'Department Mgmt',
+        'Internal Projects',
+        'Investment',
+        'Presales',
+        'Training',
+        'Unassigned',
+        'Vacation',
+        'Grand Total'
+    ]
+    
+    # Reorder columns according to the specified order
+    pivot_df = pivot_df[column_order]
     
     # Remove any 'Row Labels' column if it exists
     if 'Row Labels' in pivot_df.columns:
