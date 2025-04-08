@@ -16,9 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings  # Import settings
+from django.conf.urls.static import static  # Import static for serving media files
 from dataextract.views import home_view
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-     path('', home_view, name='home'),
+    path('', home_view, name='home'),
     path('dataextract/', include('dataextract.urls')),  # Include dataextract app URLs
 ]
+
+# Serve media files during development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
