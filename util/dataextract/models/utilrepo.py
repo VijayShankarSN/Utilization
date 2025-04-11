@@ -18,7 +18,7 @@ class UtilizationReport(models.Model):
     spoc_comments = models.TextField(blank=True, null=True)
     rdm = models.CharField(max_length=255)
     track = models.CharField(max_length=255)
-    billing = models.FloatField()
+    billing = models.CharField(max_length=500)
 
     def __str__(self):
         return self.name
