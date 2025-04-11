@@ -13,19 +13,17 @@ def extract_data_view(request):
     """
     View to handle file uploads and extract data from the uploaded Excel files.
     """
-    if request.method == 'POST' and request.FILES.get('file') and request.FILES.get('extracted_columns_file'):
+    if request.method == 'POST' and request.FILES.get('file'):
         # Handle file uploads
         file = request.FILES['file']
-        extracted_columns_file = request.FILES['extracted_columns_file']
 
-        # Save the uploaded files to a temporary location
+        # Save the uploaded file to a temporary location
         fs = FileSystemStorage()
         file_path = fs.save(file.name, file)
-        extracted_columns_path = fs.save(extracted_columns_file.name, extracted_columns_file)
 
         try:
             # Call the main function to extract data
-            dfs, pivot_df = main(fs.path(file_path), fs.path(extracted_columns_path))  # Pass both file paths
+            dfs, pivot_df = main(fs.path(file_path), None)  # Pass None for extracted_columns_path
 
             # Convert the extracted data (WTD and MTD DataFrames) to HTML tables
             wtd_html = dfs['WTD'].to_html(classes='table table-striped', index=False)
@@ -45,3 +43,4 @@ def extract_data_view(request):
             return render(request, 'dataextract/upload.html', {'error_message': error_message})
 
     return render(request, 'dataextract/upload.html')
+

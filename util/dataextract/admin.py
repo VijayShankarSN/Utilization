@@ -10,6 +10,8 @@ from .models import (
     Allocation,
     Deal,
     ProjectActivityLog,
+    EmailTrack,
+    rdmname,
 )
 
 # Register your models here
@@ -20,3 +22,8 @@ admin.site.register(Resource)
 admin.site.register(Allocation)
 admin.site.register(Deal)
 admin.site.register(ProjectActivityLog)
+admin.site.register(EmailTrack)
+admin.site.register(rdmname)
+
+
+

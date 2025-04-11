@@ -1,6 +1,9 @@
 import pandas as pd
 from datetime import datetime
 import os
+from .models.utilrepo import UtilizationReport
+from .models.trackbill import EmailTrack 
+
 
 def read_data_from_excel(file_path):
     """
@@ -25,15 +28,35 @@ def read_data_from_excel(file_path):
     xls = pd.ExcelFile(file_path, engine=engine)
     return xls, engine
 
-def get_current_month():
+def extract_month_from_filename(file_path):
     """
-    Get the current month name.
+    Extract the month name from the file name.
+    
+    Args:
+        file_path (str): Path to the file (e.g., 'Latest Utilization Report 14Mar2025_dxRTy5wxlsb.xlsb')
     
     Returns:
-        str: Current month name (e.g., "March")
+        str: Month name (e.g., 'March')
     """
-    return f"{datetime.now().strftime('%B')}"
-
+    try:
+        # Extract the file name from the path
+        file_name = os.path.basename(file_path)  # e.g., 'Latest Utilization Report 14Mar2025_dxRTy5wxlsb.xlsb'
+        
+        # Split the file name and find the part containing the date
+        parts = file_name.split()
+        for part in parts:
+            # Check if the part matches the expected date format
+            try:
+                parsed_date = datetime.strptime(part[:9], "%d%b%Y")  # Try parsing the first 9 characters
+                return parsed_date.strftime('%B')  # Return the full month name (e.g., 'March')
+            except ValueError:
+                continue  # Skip parts that don't match the format
+        
+        # If no valid date part is found, raise an error
+        raise ValueError("No valid date part found in the file name.")
+    except Exception as e:
+        raise ValueError(f"Error extracting month from filename: {str(e)}")
+    
 def find_header_row(xls, sheet_name, target_column):
     """
     Find the header row in an Excel sheet by searching for a specific column.
@@ -55,7 +78,8 @@ def find_header_row(xls, sheet_name, target_column):
 
     raise ValueError(f"Header containing '{target_column}' not found in {sheet_name}.")
 
-def create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row):
+# Replace the hardcoded 'March' with dynamic month extraction
+def create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row, file_path):
     """
     Create DataFrames from Excel sheets with specific column mappings.
     
@@ -64,11 +88,12 @@ def create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row)
         sheet_column_mapping (dict): Dictionary containing column mappings for each sheet
         wtd_header_row (int): Header row index for WTD sheet
         mtd_header_row (int): Header row index for MTD sheet
-        
+        file_path (str): Path to the file to extract the month
+    
     Returns:
         dict: Dictionary containing DataFrames for each sheet
     """
-    current_month = get_current_month()
+    current_month = extract_month_from_filename(file_path)  # Dynamically extract the month
     
     # Read and filter data by 'CC' value (504686) from each sheet
     dfs = {
@@ -84,33 +109,35 @@ def create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row)
     }
     return dfs
 
-def read_extracted_columns(file_path):
+
+def read_extracted_columns(file_path=None):
     """
-    Read data from extracted_columns.xlsb file.
+    Read data from the EmailTrack model instead of an Excel file.
     
     Args:
-        file_path (str): Path to the extracted_columns.xlsb file
+        file_path (str): Path to the extracted_columns.xlsb file (not used anymore)
         
     Returns:
         DataFrame: DataFrame containing Track and Billing columns
     """
     try:
-        # Read the Excel file using pyxlsb engine
-        xls = pd.ExcelFile(file_path, engine="pyxlsb")
+        # Query all records from the EmailTrack model
+        email_tracks = EmailTrack.objects.all().values('row_labels', 'track', 'billing')
         
-        # Read the first sheet (assuming it's the only sheet)
-        df = pd.read_excel(xls, sheet_name=0)
+        # Convert the QuerySet to a DataFrame
+        df = pd.DataFrame(email_tracks)
         
         # Ensure required columns exist
-        required_cols = ['Track', 'Billing']
+        required_cols = ['row_labels', 'track', 'billing']
         if not all(col in df.columns for col in required_cols):
-            raise ValueError("Required columns 'Track' and 'Billing' not found in extracted_columns.xlsb")
-            
-        return df
+            raise ValueError("Required columns 'row_labels', 'track', and 'billing' not found in EmailTrack model")
+        
+        return df.rename(columns={'row_labels': 'Resource Email Address', 'track': 'Track', 'billing': 'Billing'})
     except Exception as e:
-        raise Exception(f"Error reading extracted_columns.xlsb: {str(e)}")
+        raise Exception(f"Error reading data from EmailTrack model: {str(e)}")
 
-def create_pivot_table(dfs, extracted_df):
+
+def create_pivot_table(dfs, extracted_df,file_path):
     """
     Create a pivot table from the MTD DataFrame showing work type breakdowns.
     
@@ -122,7 +149,7 @@ def create_pivot_table(dfs, extracted_df):
         DataFrame: Pivot table with work type breakdowns
     """
     # Calculate days from hours (8 hours per day)
-    dfs['MTD']['Days'] = dfs['MTD']['March'] / 8
+    dfs['MTD']['Days'] = dfs['MTD'][extract_month_from_filename(file_path)] / 8
     
     # Create pivot table
     pivot_df = dfs['MTD'].pivot_table(
@@ -265,6 +292,7 @@ def create_pivot_table(dfs, extracted_df):
     
     return pivot_df
 
+
 def main(file_path, extracted_columns_path):
     """
     Main function to process the Excel file and extract data.
@@ -276,9 +304,6 @@ def main(file_path, extracted_columns_path):
     # Read the Excel file
     xls, xl_engine = read_data_from_excel(file_path)
     
-    # Get current month
-    current_month = get_current_month()
-    
     # Define sheets and columns
     sheet_column_mapping = {
         'WTD': {
@@ -287,7 +312,7 @@ def main(file_path, extracted_columns_path):
         },
         'MTD': {
             'base_columns': ['Resource Email Address', 'Project Number', 'Project Name', 
-                           'Work Type Description-OPS', 'March', 'Cost Center - OPS'],
+                           'Work Type Description-OPS', extract_month_from_filename(file_path), 'Cost Center - OPS'],
             'cc_column': 'Cost Center - OPS'
         }
     }
@@ -297,13 +322,35 @@ def main(file_path, extracted_columns_path):
     wtd_header_row = find_header_row(xls, 'WTD', 'Consultant Name')
     
     # Create DataFrames
-    dfs = create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row)
+    dfs = create_dataframes(xls, sheet_column_mapping, wtd_header_row, mtd_header_row, file_path)
     
     # Read extracted columns data
     extracted_df = read_extracted_columns(extracted_columns_path)
     
     # Create pivot table
-    pivot_df = create_pivot_table(dfs, extracted_df)
+    pivot_df = create_pivot_table(dfs, extracted_df,file_path)
+    
+    # Save pivot table data to the UtilizationReport model
+    for _, row in pivot_df.iterrows():
+        UtilizationReport.objects.create(
+            name=row.get('Resource Email Address', ''),
+            administrative=row.get('Administrative', 0),
+            billable_days=row.get('Billable Hours', 0),
+            training=row.get('Training', 0),
+            unassigned=row.get('Unassigned', 0),
+            vacation=row.get('Vacation', 0),
+            grand_total=row.get('Grand Total', 0),
+            last_week=row.get('WTD Actual', 0),
+            status=row.get('Status', ''),
+            addtnl_days=row.get('Additional Days', 0),
+            wtd_actual=row.get('WTD Actual', 0),
+            spoc=row.get('Track', ''),
+            comments=None,  # Assuming no comments in the pivot table
+            spoc_comments=None,  # Assuming no SPOC comments in the pivot table
+            rdm='',  # Assuming no RDM in the pivot table
+            track=row.get('Track', ''),
+            billing=row.get('Billing', '')
+        )
     
     return dfs, pivot_df
 
