@@ -19,6 +19,7 @@ class UtilizationReport(models.Model):
     rdm = models.CharField(max_length=255)
     track = models.CharField(max_length=255)
     billing = models.CharField(max_length=500)
-
+    date = models.DateField(null=True, blank=True)
+    
     def __str__(self):
         return self.name

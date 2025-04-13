@@ -1,6 +1,8 @@
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import numpy as np
+from .models.exclusion_table import rdmname
 from .models.utilrepo import UtilizationReport
 from .models.trackbill import EmailTrack 
 
@@ -192,76 +194,164 @@ def create_pivot_table(dfs, extracted_df,file_path):
     )
     
     # Calculate Additional Days based on Billing values
-    def calculate_additional_days(row):
+    def calculate_additional_days(row, file_path):
+        """
+        Calculate additional days based on billing status and resource information.
+        
+        Args:
+            row (Series): Row from the pivot table
+            file_path (str): Path to the file to extract the week number
+            
+        Returns:
+            float: Additional days to be added
+        """
+        # Extract week number from file path
+        file_name = os.path.basename(file_path)
+        parts = file_name.split()
+        week_number = None
+
+        for part in parts:
+            try:
+                parsed_date = datetime.strptime(part[:9], "%d%b%Y")
+            
+                # Calculate the week number using the new formula
+                week_number = (parsed_date.day - 1) // 7 + 1
+                break
+            except ValueError:
+                continue
+
         billing = row['Billing']  # Use exact value without case conversion
         
         # Get WTD Actual and Vacation values
         wtd_actual_days = row['WTD Actual'] / 8  # Convert hours to days
         vacation = row.get('Vacation', 0)  # Get Vacation value, default to 0 if not present
+        dept = row.get('Department Mgmt', 0)  # Get Department Mgmt value, default to 0 if not present
+        billable_hours = row.get('Billable Hours', 0)  # Get Billable Hours value, default to 0 if not present
+        grand_total = row.get('Grand Total', 0)  # Get Grand Total value, default to 0 if not present
+        
+        # Get last week's additional days
+        last_week = 0
+        if week_number > 1:
+            prev_week_date = parsed_date - timedelta(days=7)
+            prev_week_record = UtilizationReport.objects.filter(
+                name=row['Resource Email Address'],
+                date=prev_week_date.strftime('%Y-%m-%d')
+            ).first()
+            if prev_week_record:
+                last_week = prev_week_record.addtnl_days
         
         # Print debug information
         print(f"\nDebug for {row['Resource Email Address']}:")
         print(f"Billing: {billing}")
         print(f"WTD Actual (in days): {wtd_actual_days}")
         print(f"Vacation: {vacation}")
+        print(f"Department Mgmt: {dept}")
+        print(f"Billable Hours: {billable_hours}")
+        print(f"Grand Total: {grand_total}")
+        print(f"Week Number: {week_number}")
+        print(f"Last Week Additional Days: {last_week}")
         
-        # Only calculate Additional Days for Billing and Partial cases
+        # Calculate total days based on week number
+        total_days = week_number * 5
+        
+        # Check if the name is in the exclusion list
+        exclusive_names = row['Resource Email Address']
+        all_entries = rdmname.objects.all()
+        
+        # Logic based on billing type
         if billing == 'Billing':
-            # Step 1: Check if WTD Actual/8 = 5
-            if abs(wtd_actual_days - 5.0) < 0.0001:  # Using small epsilon for float comparison
-                print("WTD Actual/8 = 5.0")
-                return 0
-                
-            # Step 2: Check if WTD Actual/8 + Vacation = 5
-            total_days = wtd_actual_days + vacation
-            print(f"WTD Actual/8 + Vacation = {total_days}")
-            
-            if abs(total_days - 5.0) < 0.0001:  # Using small epsilon for float comparison
-                print("WTD Actual/8 + Vacation = 5.0")
+            # For Billing type, check if total logged hours (billable + vacation + last_week) >= total_days
+            if (billable_hours + vacation + last_week) >= total_days:
+                print(f"Billing: Total logged hours ({billable_hours + vacation + last_week}) >= total_days ({total_days})")
                 return 0
             else:
-                # Step 3: Calculate Additional Days = 5 - (WTD Actual/8 + Vacation)
-                additional = max(0, 5.0 - total_days)
-                print(f"Additional Days = 5.0 - {total_days} = {additional}")
+                # Calculate additional days needed
+                additional = max(0, total_days - (billable_hours + vacation + last_week))
+                print(f"Billing: Additional days = {total_days} - ({billable_hours} + {vacation} + {last_week}) = {additional}")
                 return additional
+            
         elif billing == 'Partial':
-            # Step 1: Check if WTD Actual/8 = 2.5
-            if abs(wtd_actual_days - 2.5) < 0.0001:  # Using small epsilon for float comparison
-                print("WTD Actual/8 = 2.5")
-                return 0
-                
-            # Step 2: Check if WTD Actual/8 + Vacation = 2.5
-            total_days = wtd_actual_days + vacation
-            print(f"WTD Actual/8 + Vacation = {total_days}")
-            
-            if abs(total_days - 2.5) < 0.0001:  # Using small epsilon for float comparison
-                print("WTD Actual/8 + Vacation = 2.5")
+            # For Partial billing, check if total logged hours (billable + vacation + last_week) >= total_days/2
+            if (billable_hours + vacation + last_week) >= total_days/2:
+                print(f"Partial: Total logged hours ({billable_hours + vacation + last_week}) >= total_days/2 ({total_days/2})")
                 return 0
             else:
-                # Step 3: Calculate Additional Days = 2.5 - (WTD Actual/8 + Vacation)
-                additional = max(0, 2.5 - total_days)
-                print(f"Additional Days = 2.5 - {total_days} = {additional}")
+                # Calculate additional days needed
+                additional = max(0, total_days/2 - (billable_hours + vacation + last_week))
+                print(f"Partial: Additional days = {total_days/2} - ({billable_hours} + {vacation} + {last_week}) = {additional}")
                 return additional
+            
+        elif billing in ['On Bench', 'Non Billable', 'Next', 'Released']:
+            # For these billing types, no additional days needed
+            print(f"{billing}: No additional days needed")
+            return 0
+        
         else:
-            # For all other cases, Additional Days is 0
+            # Default case - no additional days
+            print(f"Unknown billing type '{billing}': No additional days")
             return 0
     
     # Add Additional Days column
-    pivot_df['Additional Days'] = pivot_df.apply(calculate_additional_days, axis=1)
+    pivot_df['Additional Days'] = pivot_df.apply(lambda row: calculate_additional_days(row, file_path), axis=1)
     
     # Add Status column based on Billing values and Additional Days
-    def determine_status(row):
-        billing = row['Billing']  # Use exact value without case conversion
-        additional_days = row['Additional Days']
+    def determine_status(row, file_path):
+        """
+        Determine the status based on billing type and logged hours.
         
-        # For Billing and Partial cases
-        if billing in ['Billing', 'Partial']:
-            return 'Open' if additional_days > 0 else 'Closed'
-        # For all other cases
-        else:
-            return 'Closed'
+        Args:
+            row (Series): Row from the pivot table
+            file_path (str): Path to the file to extract the week number
+            
+        Returns:
+            str: Status ('open' or 'close')
+        """
+        # Extract week number from file path
+        file_name = os.path.basename(file_path)
+        parts = file_name.split()
+        week_number = None
+
+        for part in parts:
+            try:
+                parsed_date = datetime.strptime(part[:9], "%d%b%Y")
+            
+                # Calculate the week number using the new formula
+                week_number = (parsed_date.day - 1) // 7 + 1
+                break
+            except ValueError:
+                continue
+        
+        # Calculate total days based on week number
+        total_days = week_number * 5
+        
+        # Get billing type and other values
+        billing_type = str(row.get('Billing', '')).strip()
+        dept_mgmt = row.get('Department Mgmt', 0) or 0
+        admin = row.get('Administrative', 0) or 0
+        billable_hours = row.get('Billable Hours', 0) or 0
+        vacation = row.get('Vacation', 0) or 0
+        total_logged = billable_hours + vacation
+
+        # Priority-based checks
+        if dept_mgmt >= 1 or admin >= 1:
+            return 'close'
+
+        if billing_type == 'Billing':  # Full Billable
+            return 'close' if total_logged >= total_days else 'open'
+
+        if billing_type == 'Partial':
+            return 'close' if total_logged >= total_days / 2 else 'open'
+
+        if billing_type in {'Next', 'TBD'}:
+            return 'close' if total_logged >= total_days else 'open'
+
+        if billing_type in {'On Bench', 'Non Billable', 'Released'}:
+            return 'close'
+
+        # Fallback/default
+        return 'open'
     
-    pivot_df['Status'] = pivot_df.apply(determine_status, axis=1)
+    pivot_df['Status'] = pivot_df.apply(lambda row: determine_status(row, file_path), axis=1)
     
     # Define the exact column order
     column_order = [
@@ -331,27 +421,63 @@ def main(file_path, extracted_columns_path):
     pivot_df = create_pivot_table(dfs, extracted_df,file_path)
     
     # Save pivot table data to the UtilizationReport model
-    for _, row in pivot_df.iterrows():
-        UtilizationReport.objects.create(
-            name=row.get('Resource Email Address', ''),
-            administrative=row.get('Administrative', 0),
-            billable_days=row.get('Billable Hours', 0),
-            training=row.get('Training', 0),
-            unassigned=row.get('Unassigned', 0),
-            vacation=row.get('Vacation', 0),
-            grand_total=row.get('Grand Total', 0),
-            last_week=row.get('WTD Actual', 0),
-            status=row.get('Status', ''),
-            addtnl_days=row.get('Additional Days', 0),
-            wtd_actual=row.get('WTD Actual', 0),
-            spoc=row.get('Track', ''),
-            comments=None,  # Assuming no comments in the pivot table
-            spoc_comments=None,  # Assuming no SPOC comments in the pivot table
-            rdm='',  # Assuming no RDM in the pivot table
-            track=row.get('Track', ''),
-            billing=row.get('Billing', '')
-        )
+    pivot_df = pivot_df.replace({np.nan: None})
+
+    # Extract the date from file path
+    file_name = os.path.basename(file_path)
+    # Find the date part in the filename (e.g., '10Apr2025' from 'Latest Utilization Report 10Apr2025_xzi8ffd.xlsb')
+    date_part = None
+    for part in file_name.split():
+        try:
+            # Try to parse the first 9 characters of each part as a date
+            date_part = part[:9]
+            parsed_date = datetime.strptime(date_part, "%d%b%Y")
+            break
+        except ValueError:
+            continue
     
+    if date_part:
+        file_date = parsed_date.strftime('%Y-%m-%d')  # e.g., '2025-04-10'
+    else:
+        file_date = None
+
+    # Calculate week number
+    week_number = (parsed_date.day - 1) // 7 + 1
+
+    # Get previous week's additional days for each resource
+    previous_week_data = {}
+    if week_number > 1:
+        # Query the previous week's data
+        prev_week_date = parsed_date - timedelta(days=7)
+        prev_week_records = UtilizationReport.objects.filter(date=prev_week_date.strftime('%Y-%m-%d'))
+        for record in prev_week_records:
+            previous_week_data[record.name] = record.addtnl_days
+
+    for _, row in pivot_df.iterrows():
+        resource_name = row.get('Resource Email Address', '') or ''
+        last_week_value = previous_week_data.get(resource_name, 0) if week_number > 1 else 0
+
+        UtilizationReport.objects.create(
+        name=resource_name,
+        administrative=row.get('Administrative') or 0,
+        billable_days=row.get('Billable Hours') or 0,
+        training=row.get('Training') or 0,
+        unassigned=row.get('Unassigned') or 0,
+        vacation=row.get('Vacation') or 0,
+        grand_total=row.get('Grand Total') or 0,
+        last_week=last_week_value,
+        status=row.get('Status') or '',
+        addtnl_days=row.get('Additional Days') or 0,
+        wtd_actual=row.get('WTD Actual') or 0,
+        spoc=row.get('Track') or '',
+        comments=None,
+        spoc_comments=None,
+        rdm='',
+        track=row.get('Track') or '',
+        billing=row.get('Billing') or '',
+        date=file_date
+    )
+        
     return dfs, pivot_df
 
 if __name__ == "__main__":

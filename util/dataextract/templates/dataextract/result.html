@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .result-container {
-        padding: 2rem 1rem;
+        padding: 1rem 1rem;
         max-width: 1400px;
         margin: 0 auto;
     }
@@ -14,10 +14,11 @@
         color: var(--redwood-primary);
         font-size: 2.25rem;
         font-weight: 700;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
         text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
         position: relative;
         display: inline-block;
+        padding-top: 0px;
     }
 
     .page-title::after {
@@ -45,7 +46,7 @@
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 20px;
-        padding: 1.75rem;
+        padding: 1.25rem;
         margin-bottom: 1.5rem;
         box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -63,6 +64,8 @@
         overflow-x: auto;
         scrollbar-width: thin;
         scrollbar-color: var(--redwood-secondary) transparent;
+        max-height: 600px;
+        position: relative;
     }
 
     .table-responsive::-webkit-scrollbar {
@@ -82,6 +85,14 @@
     .table {
         margin: 0;
         width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table thead {
+        position: sticky;
+        top: 0;
+        z-index: 2;
     }
 
     .table th {
@@ -94,6 +105,8 @@
         font-size: 0.95rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
     }
 
     .table td {
@@ -239,7 +252,6 @@
 <div class="result-container">
     <div class="text-center mb-4">
         <h1 class="page-title">Utilization Report</h1>
-        <p class="subtitle">Below is the detailed breakdown of the utilization data.</p>
     </div>
 
     <div class="result-card">
