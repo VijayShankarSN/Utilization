@@ -1,7 +1,15 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.core.files.storage import FileSystemStorage
 from .data_extraction import main  # Import the main function from data_extraction.py
+from .forms import UploadFileForm
+from .utils import process_excel_file
+from .utils import get_available_dates, get_report_for_date
+from django.urls import reverse
+from django.shortcuts import redirect
+from .models import UtilizationReport
+from django.views.decorators.http import require_http_methods
+import json
 
 def home_view(request):
     """
@@ -43,4 +51,81 @@ def extract_data_view(request):
             return render(request, 'dataextract/upload.html', {'error_message': error_message})
 
     return render(request, 'dataextract/upload.html')
+
+def upload_file(request):
+    if request.method == 'POST':
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['file']
+            result = process_excel_file(file)
+            return render(request, 'dataextract/result.html', {'pivot_html': result})
+    else:
+        form = UploadFileForm()
+    return render(request, 'dataextract/upload.html', {'form': form})
+
+def view_reports(request):
+    available_dates = get_available_dates()
+    selected_date = request.GET.get('date')
+    report_data = None
+
+    if selected_date:
+        report_data = get_report_for_date(selected_date)
+
+    context = {
+        'available_dates': available_dates,
+        'selected_date': selected_date,
+        'report_data': report_data
+    }
+    return render(request, 'dataextract/view_reports.html', context)
+
+def util_leakage(request):
+    dates = get_available_dates()
+    selected_date = request.GET.get('date')
+    
+    if selected_date:
+        # Get report data and filter for open status only
+        report_data = UtilizationReport.objects.filter(
+            date=selected_date,
+            status='Open'  # Filter only open cases
+        ).values(
+            'id',  # Include the id field
+            'name',
+            'track',
+            'billing',
+            'status',
+            'comments',
+            'spoc',
+            'spoc_comments'
+        )
+    else:
+        report_data = None
+
+    context = {
+        'dates': dates,
+        'selected_date': selected_date,
+        'report_data': report_data,
+    }
+    
+    return render(request, 'dataextract/util_leakage.html', context)
+
+@require_http_methods(["POST"])
+def update_comments(request):
+    try:
+        data = json.loads(request.body)
+        report_id = data.get('id')
+        field = data.get('field')
+        value = data.get('value')
+
+        if field not in ['comments', 'spoc_comments']:
+            return JsonResponse({'success': False, 'error': 'Invalid field'})
+
+        report = UtilizationReport.objects.get(id=report_id)
+        setattr(report, field, value)
+        report.save()
+
+        return JsonResponse({'success': True})
+    except UtilizationReport.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Report not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 

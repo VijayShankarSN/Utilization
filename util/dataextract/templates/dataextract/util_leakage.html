@@ -1,0 +1,496 @@
+{% extends 'dataextract/base.html' %}
+
+{% block title %}Util Leakage{% endblock %}
+
+{% block extra_css %}
+<style>
+    .container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-title {
+        color: var(--redwood-primary);
+        font-size: 2.25rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        position: relative;
+        display: inline-block;
+        padding-top: 0px;
+    }
+
+    .page-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--redwood-primary), transparent);
+        border-radius: 2px;
+    }
+
+    .page-subtitle {
+        color: var(--text-custom);
+        font-size: 1.1rem;
+        font-weight: 300;
+        margin-bottom: 2rem;
+        opacity: 0.8;
+    }
+
+    .date-selector {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .date-selector::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #2c5282, #4299e1);
+    }
+
+    .date-selector label {
+        display: block;
+        color: #2d3748;
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+
+    .date-selector select {
+        background: #f7fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        color: #2d3748;
+        font-size: 1.1rem;
+        width: 100%;
+        max-width: 400px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%232d3748' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        background-size: 1.5rem;
+    }
+
+    .date-selector select:hover {
+        background: #edf2f7;
+        border-color: #cbd5e0;
+    }
+
+    .date-selector select:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+    }
+
+    .date-selector select option {
+        padding: 1rem;
+        font-size: 1rem;
+    }
+
+    .form-label {
+        color: var(--text-custom);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-select {
+        background-color: var(--input-bg);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-custom);
+        padding: 0.8rem 1rem;
+        border-radius: 10px;
+        width: 100%;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: var(--redwood-primary);
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+    }
+
+    .result-card {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .result-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .table-responsive {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 0;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--redwood-secondary) transparent;
+        max-height: 600px;
+        position: relative;
+    }
+
+    .table-responsive::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background-color: var(--redwood-secondary);
+        border-radius: 3px;
+    }
+
+    .table {
+        margin: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table thead {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .table th {
+        background: linear-gradient(145deg, #1a365d, #2c5282);
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+        border-color: rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .table td {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        vertical-align: middle;
+        font-size: 0.95rem;
+        white-space: nowrap;
+        color: var(--text-custom);
+    }
+
+    /* Column-specific styles */
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+        text-align: left;
+        min-width: 300px;
+    }
+
+    .table th:nth-child(1) {
+        color: #ffffff;
+    }
+
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+        text-align: right;
+        min-width: 100px;
+        font-family: 'Monaco', 'Consolas', monospace;
+        color: var(--text-custom);
+    }
+
+    .table th:nth-child(2) {
+        color: #ffffff;
+    }
+
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+        text-align: center;
+        min-width: 120px;
+        font-weight: 500;
+        color: var(--text-custom);
+    }
+
+    .table th:nth-child(3) {
+        color: #ffffff;
+    }
+
+    .table th:nth-child(4),
+    .table td:nth-child(4) {
+        text-align: center;
+        min-width: 120px;
+        color: var(--text-custom);
+    }
+
+    .table th:nth-child(4) {
+        color: #ffffff;
+    }
+
+    .table th:nth-child(5),
+    .table td:nth-child(5) {
+        text-align: center;
+        min-width: 100px;
+        color: var(--text-custom);
+    }
+
+    .table th:nth-child(5) {
+        color: #ffffff;
+    }
+
+    .table th:nth-child(6),
+    .table td:nth-child(6) {
+        text-align: center;
+        min-width: 100px;
+        color: var(--text-custom);
+    }
+
+    .table th:nth-child(6) {
+        color: #ffffff;
+    }
+
+    .table th:nth-child(7),
+    .table td:nth-child(7) {
+        text-align: center;
+        min-width: 100px;
+        color: var(--text-custom);
+    }
+
+    .table th:nth-child(7) {
+        color: #ffffff;
+    }
+
+    /* Status-specific styles */
+    .table td:nth-child(5) {
+        font-weight: 500;
+    }
+
+    .table-hover tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .table-hover tbody tr:hover {
+        background: rgba(66, 153, 225, 0.05);
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background: rgba(66, 153, 225, 0.02);
+    }
+
+    /* Ensure consistent row height */
+    .table tr {
+        height: 45px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 1rem;
+        }
+        
+        .table th, .table td {
+            padding: 0.75rem;
+        }
+    }
+
+    /* Add loading animation for data */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .table tbody tr {
+        animation: fadeIn 0.3s ease-out forwards;
+        animation-delay: calc(var(--row-index, 0) * 0.05s);
+        opacity: 0;
+    }
+
+    .editable {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 0.5rem;
+        min-height: 38px;
+        transition: all 0.3s ease;
+    }
+
+    .editable:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .editable:focus {
+        outline: none;
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: var(--redwood-primary);
+        box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="text-center mb-4">
+        <h1 class="page-title">Util Leakage Report</h1>
+        <p class="page-subtitle">View open cases from utilization reports</p>
+    </div>
+
+    <div class="date-selector">
+        <form method="get" class="row g-3 align-items-end justify-content-center">
+            <div class="col-md-6">
+                <label for="date" class="form-label">Select Report Date</label>
+                <select name="date" id="date" class="form-select" onchange="this.form.submit()">
+                    <option value="">Select a date...</option>
+                    {% for date in dates %}
+                        <option value="{{ date }}" {% if selected_date == date %}selected{% endif %}>{{ date }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+
+    {% if report_data %}
+        <div class="result-card">
+            <div class="table-responsive">
+                <form method="post">
+                    {% csrf_token %}
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Resource Name</th>
+                                <th>Track</th>
+                                <th>Billing</th>
+                                <th>Status</th>
+                                <th>Comments</th>
+                                <th>SPOC</th>
+                                <th>SPOC Comments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in report_data %}
+                                <tr>
+                                    <td>{{ row.name }}</td>
+                                    <td>{{ row.track }}</td>
+                                    <td>{{ row.billing }}</td>
+                                    <td class="status-open">{{ row.status }}</td>
+                                    <td>
+                                        <div class="editable" 
+                                             contenteditable="true"
+                                             onblur="debouncedSave('{{ row.id }}', 'comments', this.textContent.trim())"
+                                             >{{ row.comments }}</div>
+                                    </td>
+                                    <td>{{ row.spoc }}</td>
+                                    <td>
+                                        <div class="editable" 
+                                             contenteditable="true"
+                                             onblur="debouncedSave('{{ row.id }}', 'spoc_comments', this.textContent.trim())"
+                                             >{{ row.spoc_comments }}</div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+        </div>
+    {% elif selected_date %}
+        <div class="result-card">
+            <div class="text-center text-muted">
+                <i class="fas fa-info-circle mb-3" style="font-size: 2rem;"></i>
+                <p>No open cases found for the selected date.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // Add row index for staggered animation
+    document.querySelectorAll('.table tbody tr').forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+    });
+
+    // Function to save comments
+    function saveComments(id, field, value) {
+        fetch('{% url "update_comments" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                id: id,
+                field: field,
+                value: value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success indicator
+                const cell = document.activeElement.parentElement;
+                cell.style.backgroundColor = 'rgba(72, 187, 120, 0.1)';
+                setTimeout(() => {
+                    cell.style.backgroundColor = '';
+                }, 1000);
+            } else {
+                // Show error indicator
+                const cell = document.activeElement.parentElement;
+                cell.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
+                setTimeout(() => {
+                    cell.style.backgroundColor = '';
+                }, 1000);
+                console.error('Error saving comment:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Show error indicator
+            const cell = document.activeElement.parentElement;
+            cell.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
+            setTimeout(() => {
+                cell.style.backgroundColor = '';
+            }, 1000);
+        });
+    }
+
+    // Add debounce function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Debounced save function
+    const debouncedSave = debounce(saveComments, 500);
+</script>
+{% endblock %}
