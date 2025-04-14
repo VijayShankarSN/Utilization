@@ -10,6 +10,8 @@ from django.shortcuts import redirect
 from .models import UtilizationReport
 from django.views.decorators.http import require_http_methods
 import json
+import pandas as pd
+from io import BytesIO
 
 def home_view(request):
     """
@@ -33,6 +35,15 @@ def extract_data_view(request):
             # Call the main function to extract data
             dfs, pivot_df = main(fs.path(file_path), None)  # Pass None for extracted_columns_path
 
+            # Store DataFrames as JSON in the session
+            request.session['wtd_data'] = dfs['WTD'].to_json(orient='records')
+            request.session['mtd_data'] = dfs['MTD'].to_json(orient='records')
+            request.session['pivot_data'] = pivot_df.to_json(orient='records')
+
+            # Get the latest date from the database
+            latest_report = UtilizationReport.objects.order_by('-date').first()
+            report_date = latest_report.date.strftime('%Y-%m-%d') if latest_report else None
+
             # Convert the extracted data (WTD and MTD DataFrames) to HTML tables
             wtd_html = dfs['WTD'].to_html(classes='table table-striped', index=False)
             mtd_html = dfs['MTD'].to_html(classes='table table-striped', index=False)
@@ -42,7 +53,9 @@ def extract_data_view(request):
             return render(request, 'dataextract/result.html', {
                 'wtd_html': wtd_html,
                 'mtd_html': mtd_html,
-                'pivot_html': pivot_html
+                'pivot_html': pivot_html,
+                'has_data': True,
+                'current_date': report_date
             })
 
         except Exception as e:
@@ -90,12 +103,22 @@ def util_leakage(request):
         ).values(
             'id',  # Include the id field
             'name',
-            'track',
-            'billing',
+            'administrative',
+            'billable_days',
+            'training',
+            'unassigned',
+            'vacation',
+            'grand_total',
+            'last_week',
             'status',
-            'comments',
+            'addtnl_days',
+            'wtd_actual',
             'spoc',
-            'spoc_comments'
+            'comments',
+            'spoc_comments',
+            'rdm',
+            'track',
+            'billing'
         )
     else:
         report_data = None
@@ -128,4 +151,125 @@ def update_comments(request):
         return JsonResponse({'success': False, 'error': 'Report not found'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+def download_report(request):
+    date = request.GET.get('date')
+    if not date:
+        return HttpResponse("No date selected", status=400)
+
+    # Get the report data for the selected date
+    reports = UtilizationReport.objects.filter(date=date)
+    
+    # Convert to DataFrame
+    data = []
+    for report in reports:
+        data.append({
+            'Name': report.name,
+            'Administrative': report.administrative,
+            'Billable Days': report.billable_days,
+            'Training': report.training,
+            'Unassigned': report.unassigned,
+            'Vacation': report.vacation,
+            'Grand Total': report.grand_total,
+            'Last Week': report.last_week,
+            'Status': report.status,
+            'Additional Days': report.addtnl_days,
+            'WTD Actual': report.wtd_actual,
+            'SPOC': report.spoc,
+            'Comments': report.comments,
+            'SPOC Comments': report.spoc_comments,
+            'RDM': report.rdm,
+            'Track': report.track,
+            'Billing': report.billing
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # Create Excel file in memory
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Utilization Report', index=False)
+    
+    # Prepare response
+    output.seek(0)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=utilization_report_{date}.xlsx'
+    
+    return response
+
+def download_result(request):
+    """
+    Download the extraction results as an Excel file.
+    """
+    try:
+        # Create a BytesIO buffer to save the Excel file
+        output = BytesIO()
+        
+        # Create Excel writer object
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            if 'wtd_data' in request.session:
+                wtd_df = pd.read_json(request.session['wtd_data'])
+                wtd_df.to_excel(writer, sheet_name='WTD Data', index=False)
+            if 'mtd_data' in request.session:
+                mtd_df = pd.read_json(request.session['mtd_data'])
+                mtd_df.to_excel(writer, sheet_name='MTD Data', index=False)
+            if 'pivot_data' in request.session:
+                pivot_df = pd.read_json(request.session['pivot_data'])
+                pivot_df.to_excel(writer, sheet_name='Pivot Data', index=False)
+        
+        # Prepare the response
+        output.seek(0)
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        response['Content-Disposition'] = f'attachment; filename=extraction_results_{timestamp}.xlsx'
+        
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error generating Excel file: {str(e)}", status=500)
+
+def download_util_leakage(request):
+    """
+    Download the util leakage data as an Excel file.
+    """
+    date = request.GET.get('date')
+    if not date:
+        return HttpResponse("No date selected", status=400)
+
+    # Get report data and filter for open status only
+    reports = UtilizationReport.objects.filter(
+        date=date,
+        status='Open'
+    ).values(
+        'name',
+        'track',
+        'billing',
+        'status',
+        'comments',
+        'spoc',
+        'spoc_comments'
+    )
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(list(reports))
+    
+    # Create Excel file in memory
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Util Leakage Report', index=False)
+    
+    # Prepare response
+    output.seek(0)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=util_leakage_report_{date}.xlsx'
+    
+    return response
 

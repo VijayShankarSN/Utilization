@@ -240,16 +240,6 @@ def create_pivot_table(dfs, extracted_df,file_path):
             if prev_week_record:
                 last_week = prev_week_record.addtnl_days
         
-        # Print debug information
-        print(f"\nDebug for {row['Resource Email Address']}:")
-        print(f"Billing: {billing}")
-        print(f"WTD Actual (in days): {wtd_actual_days}")
-        print(f"Vacation: {vacation}")
-        print(f"Department Mgmt: {dept}")
-        print(f"Billable Hours: {billable_hours}")
-        print(f"Grand Total: {grand_total}")
-        print(f"Week Number: {week_number}")
-        print(f"Last Week Additional Days: {last_week}")
         
         # Calculate total days based on week number
         total_days = week_number * 5
@@ -262,33 +252,27 @@ def create_pivot_table(dfs, extracted_df,file_path):
         if billing == 'Billing':
             # For Billing type, check if total logged hours (billable + vacation + last_week) >= total_days
             if (billable_hours + vacation + last_week) >= total_days:
-                print(f"Billing: Total logged hours ({billable_hours + vacation + last_week}) >= total_days ({total_days})")
                 return 0
             else:
                 # Calculate additional days needed
                 additional = max(0, total_days - (billable_hours + vacation + last_week))
-                print(f"Billing: Additional days = {total_days} - ({billable_hours} + {vacation} + {last_week}) = {additional}")
                 return additional
             
         elif billing == 'Partial':
             # For Partial billing, check if total logged hours (billable + vacation + last_week) >= total_days/2
             if (billable_hours + vacation + last_week) >= total_days/2:
-                print(f"Partial: Total logged hours ({billable_hours + vacation + last_week}) >= total_days/2 ({total_days/2})")
                 return 0
             else:
                 # Calculate additional days needed
                 additional = max(0, total_days/2 - (billable_hours + vacation + last_week))
-                print(f"Partial: Additional days = {total_days/2} - ({billable_hours} + {vacation} + {last_week}) = {additional}")
                 return additional
             
         elif billing in ['On Bench', 'Non Billable', 'Next', 'Released']:
             # For these billing types, no additional days needed
-            print(f"{billing}: No additional days needed")
             return 0
         
         else:
             # Default case - no additional days
-            print(f"Unknown billing type '{billing}': No additional days")
             return 0
     
     # Add Additional Days column
@@ -372,7 +356,6 @@ def create_pivot_table(dfs, extracted_df,file_path):
         'Vacation',
         'Grand Total'
     ]
-    
     # Reorder columns according to the specified order
     pivot_df = pivot_df[column_order]
     

@@ -8,4 +8,7 @@ urlpatterns = [
     path('view-reports/', views.view_reports, name='view_reports'),
     path('util-leakage/', views.util_leakage, name='util_leakage'),
     path('update-comments/', views.update_comments, name='update_comments'),
+    path('download-report/', views.download_report, name='download_report'),
+    path('download-result/', views.download_result, name='download_result'),
+    path('download-util-leakage/', views.download_util_leakage, name='download_util_leakage'),
 ]
