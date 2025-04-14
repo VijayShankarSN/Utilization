@@ -8,6 +8,9 @@
         padding: 1rem 1rem;
         max-width: 1400px;
         margin: 0 auto;
+        height: calc(100vh - 50px); /* Increased from 100px to 50px */
+        display: flex;
+        flex-direction: column;
     }
 
     .page-title {
@@ -37,7 +40,7 @@
         color: var(--text-custom);
         font-size: 1.1rem;
         font-weight: 300;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
         opacity: 0.8;
     }
 
@@ -50,6 +53,11 @@
         margin-bottom: 1.5rem;
         box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: calc(100vh - 150px); /* Increased from 200px to 150px */
     }
 
     .result-card:hover {
@@ -61,25 +69,33 @@
         background: rgba(255, 255, 255, 0.05);
         border-radius: 16px;
         padding: 0;
-        overflow-x: auto;
+        overflow: auto;
         scrollbar-width: thin;
         scrollbar-color: var(--redwood-secondary) transparent;
-        max-height: 600px;
+        flex: 1;
+        min-height: 0;
         position: relative;
+        max-height: calc(100vh - 200px); /* Increased from 250px to 200px */
     }
 
     .table-responsive::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
     }
 
     .table-responsive::-webkit-scrollbar-track {
-        background: transparent;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
     }
 
     .table-responsive::-webkit-scrollbar-thumb {
         background-color: var(--redwood-secondary);
-        border-radius: 3px;
+        border-radius: 4px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .table-responsive::-webkit-scrollbar-corner {
+        background: rgba(255, 255, 255, 0.05);
     }
 
     .table {
@@ -99,10 +115,10 @@
         background: linear-gradient(145deg, var(--sidebar-bg), rgba(58, 90, 139, 0.2));
         color: var(--redwood-secondary);
         font-weight: 600;
-        padding: 0.75rem 1rem;
+        padding: 0.5rem 0.8rem;
         border-color: rgba(255, 255, 255, 0.1);
         white-space: nowrap;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         position: sticky;
@@ -110,10 +126,10 @@
     }
 
     .table td {
-        padding: 0.75rem 1rem;
+        padding: 0.5rem 0.8rem;
         border-color: rgba(255, 255, 255, 0.1);
         vertical-align: middle;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         white-space: nowrap;
     }
 
@@ -121,34 +137,34 @@
     .table th:nth-child(1),
     .table td:nth-child(1) {
         text-align: left;
-        min-width: 300px;
+        min-width: 280px;
         color: var(--redwood-secondary);
     }
 
     .table th:nth-child(2),
     .table td:nth-child(2) {
         text-align: right;
-        min-width: 100px;
+        min-width: 90px;
         font-family: 'Monaco', 'Consolas', monospace;
     }
 
     .table th:nth-child(3),
     .table td:nth-child(3) {
         text-align: center;
-        min-width: 120px;
+        min-width: 110px;
         font-weight: 500;
     }
 
     .table th:nth-child(4),
     .table td:nth-child(4) {
         text-align: center;
-        min-width: 120px;
+        min-width: 110px;
     }
 
     .table th:nth-child(5),
     .table td:nth-child(5) {
         text-align: center;
-        min-width: 100px;
+        min-width: 90px;
     }
 
     /* Status-specific styles */
@@ -171,7 +187,7 @@
 
     /* Ensure consistent row height */
     .table tr {
-        height: 45px;
+        height: 35px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
@@ -191,6 +207,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.8rem;
+        margin-top: 1rem;
     }
 
     .btn-upload-more:hover {
@@ -245,6 +262,106 @@
         background: currentColor;
         opacity: 0.6;
     }
+
+    .filter-section {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 0;
+        padding-right: 0;
+    }
+
+    .filter-select {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.5rem 2rem 0.5rem 1rem;
+        color: #2d3748;
+        font-size: 0.9rem;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232d3748' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1rem;
+        min-width: 140px;
+    }
+
+    .filter-select:hover {
+        border-color: #4299e1;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+
+    .download-btn {
+        background: linear-gradient(145deg, #2c5282, #2b6cb0);
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(44, 82, 130, 0.2);
+    }
+
+    .download-btn:hover {
+        background: linear-gradient(145deg, #2b6cb0, #2c5282);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(44, 82, 130, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
+    .download-btn i {
+        font-size: 1.1rem;
+        transition: transform 0.3s ease;
+    }
+
+    .download-btn:hover i {
+        transform: translateY(-2px);
+    }
+
+    .util-leakage-btn {
+        background: linear-gradient(145deg, var(--redwood-primary), var(--redwood-secondary));
+        color: white;
+        border: none;
+        padding: 0.5rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+
+    .util-leakage-btn:hover {
+        background: linear-gradient(145deg, var(--redwood-secondary), var(--redwood-primary));
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+
+    .util-leakage-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .actions-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
 </style>
 {% endblock %}
 
@@ -253,6 +370,26 @@
     <div class="text-center mb-4">
         <h1 class="page-title">Utilization Report</h1>
     </div>
+
+    {% if has_data %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="filter-section">
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">All Status</option>
+                    <option value="open">Open</option>
+                    <option value="close">Close</option>
+                </select>
+            </div>
+            <div class="actions-container">
+                <a href="{% url 'util_leakage' %}?date={{ current_date }}" class="btn btn-primary util-leakage-btn">
+                    <i class="fas fa-chart-line me-2"></i>View Util Leakage
+                </a>
+                <button id="downloadBtn" class="btn btn-primary download-btn">
+                    <i class="fas fa-download me-2"></i>Download Excel
+                </button>
+            </div>
+        </div>
+    {% endif %}
 
     <div class="result-card">
         <div class="table-responsive">
@@ -267,6 +404,31 @@
     // Add row index for staggered animation
     document.querySelectorAll('.table tbody tr').forEach((row, index) => {
         row.style.setProperty('--row-index', index);
+    });
+
+    // Function to apply status filter
+    function applyFilters() {
+        const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+        const rows = document.querySelectorAll('.table tbody tr');
+        
+        rows.forEach(row => {
+            const statusCell = row.querySelector('td:nth-child(5)');
+            if (!statusCell) return;
+            
+            const status = statusCell.textContent.toLowerCase().trim();
+            const statusMatch = statusFilter === 'all' || status === statusFilter;
+            
+            row.style.display = statusMatch ? '' : 'none';
+        });
+    }
+
+    // Add event listener for status filter
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+    // Show all rows by default when page loads
+    window.addEventListener('load', function() {
+        document.getElementById('statusFilter').value = 'all';
+        applyFilters();
     });
 </script>
 {% endblock %}
