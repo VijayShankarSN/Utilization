@@ -384,9 +384,9 @@
                 <a href="{% url 'util_leakage' %}?date={{ current_date }}" class="btn btn-primary util-leakage-btn">
                     <i class="fas fa-chart-line me-2"></i>View Util Leakage
                 </a>
-                <button id="downloadBtn" class="btn btn-primary download-btn">
+                <a href="{% url 'download_result' %}" class="btn btn-primary download-btn">
                     <i class="fas fa-download me-2"></i>Download Excel
-                </button>
+                </a>
             </div>
         </div>
     {% endif %}

@@ -48,9 +48,25 @@
         box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         position: relative;
         overflow: hidden;
-        max-width: 800px;
+        max-width: 1200px;
         margin-left: auto;
         margin-right: auto;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 1.5rem;
+        justify-content: space-between;
+    }
+
+    .form-group {
+        flex: 1;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
     }
 
     .date-selector::before {
@@ -93,8 +109,8 @@
     }
 
     .filter-section {
-        margin: 0.5rem auto 1rem;
-        max-width: 800px;
+        margin: 0;
+        display: inline-block;
     }
 
     .filter-section select {
@@ -107,6 +123,11 @@
         width: 180px;
         cursor: pointer;
         transition: all 0.2s ease;
+        height: 38px;
+    }
+
+    .form-select {
+        height: 38px;
     }
 
     .result-card {
@@ -378,6 +399,7 @@
         text-decoration: none;
         height: 38px;
         white-space: nowrap;
+        margin-top: 32px;
     }
 
     .download-btn:hover {
@@ -397,6 +419,10 @@
         align-items: flex-end;
         gap: 1rem;
     }
+
+    .form-label {
+        margin-bottom: 8px;
+    }
 </style>
 {% endblock %}
 
@@ -408,8 +434,8 @@
     </div>
 
     <div class="date-selector">
-        <form method="get" class="row g-3 align-items-end justify-content-center">
-            <div class="col-md-6">
+        <form method="get" class="form-row">
+            <div class="form-group">
                 <label for="date" class="form-label">Select Report Date</label>
                 <select name="date" id="date" class="form-select" onchange="this.form.submit()">
                     <option value="">Select a date...</option>
@@ -418,19 +444,21 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="form-group">
                 <label for="billingFilter" class="form-label">Filter by Billing</label>
-                <select id="billingFilter" class="form-select">
-                    <option value="all">All Billing</option>
-                    <option value="billing">Billing</option>
-                    <option value="partial">Partial</option>
-                    <option value="next">Next</option>
-                    <option value="released">Released</option>
-                    <option value="on-bench">On-Bench</option>
-                </select>
+                <div class="filter-section">
+                    <select id="billingFilter" class="filter-select">
+                        <option value="">All Billing</option>
+                        <option value="Billing">Billing</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Next">Next</option>
+                        <option value="Released">Released</option>
+                        <option value="On-Bench">On-Bench</option>
+                    </select>
+                </div>
             </div>
             {% if selected_date %}
-            <div class="col-md-2 actions-container">
+            <div class="form-group" style="flex: 0 0 auto;">
                 <a href="{% url 'download_util_leakage' %}?date={{ selected_date }}" class="download-btn">
                     <i class="fas fa-download"></i>
                     Download
@@ -515,28 +543,34 @@
     });
 
     // Function to apply billing filter
-    function applyFilters() {
-        const billingFilter = document.getElementById('billingFilter').value.toLowerCase();
+    function applyBillingFilter() {
+        const billingFilter = document.getElementById('billingFilter').value;
         const rows = document.querySelectorAll('.table tbody tr');
         
         rows.forEach(row => {
-            const billingCell = row.querySelector('td:nth-child(3)');
-            if (!billingCell) return;
+            const cells = row.getElementsByTagName('td');
+            if (cells.length === 0) return;
             
-            const billing = billingCell.textContent.toLowerCase().trim();
-            const billingMatch = billingFilter === 'all' || billing === billingFilter;
+            // Get the billing value from the last column
+            const billingCell = cells[cells.length - 1];
+            const billingValue = billingCell.textContent.trim();
             
-            row.style.display = billingMatch ? '' : 'none';
+            // Show all rows if no filter is selected, otherwise show only matching rows
+            if (billingFilter === '' || billingValue === billingFilter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         });
     }
 
     // Add event listener for billing filter
-    document.getElementById('billingFilter').addEventListener('change', applyFilters);
+    document.getElementById('billingFilter').addEventListener('change', applyBillingFilter);
 
-    // Show all rows by default when page loads
+    // Apply filter on page load
     window.addEventListener('load', function() {
-        document.getElementById('billingFilter').value = 'all';
-        applyFilters();
+        document.getElementById('billingFilter').value = '';
+        applyBillingFilter();
     });
 
     // Handle editable cells
