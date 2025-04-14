@@ -247,16 +247,48 @@ def download_util_leakage(request):
         status='Open'
     ).values(
         'name',
-        'track',
-        'billing',
+        'administrative',
+        'billable_days',
+        'training',
+        'unassigned',
+        'vacation',
+        'grand_total',
+        'last_week',
         'status',
-        'comments',
+        'addtnl_days',
+        'wtd_actual',
         'spoc',
-        'spoc_comments'
+        'comments',
+        'spoc_comments',
+        'rdm',
+        'track',
+        'billing'
     )
     
     # Convert to DataFrame
-    df = pd.DataFrame(list(reports))
+    data = []
+    for report in reports:
+        data.append({
+            'Name': report['name'],
+            'Administrative': report['administrative'],
+            'Billable Days': report['billable_days'],
+            'Training': report['training'],
+            'Unassigned': report['unassigned'],
+            'Vacation': report['vacation'],
+            'Grand Total': report['grand_total'],
+            'Last Week': report['last_week'],
+            'Status': report['status'],
+            'Additional Days': report['addtnl_days'],
+            'WTD Actual': report['wtd_actual'],
+            'SPOC': report['spoc'],
+            'Comments': report['comments'],
+            'SPOC Comments': report['spoc_comments'],
+            'RDM': report['rdm'],
+            'Track': report['track'],
+            'Billing': report['billing']
+        })
+    
+    df = pd.DataFrame(data)
     
     # Create Excel file in memory
     output = BytesIO()
