@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 #hello
-class DataextractConfig(AppConfig):
+class UtilReportConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'dataextract'
+    name = 'util_report'

@@ -7,4 +7,4 @@ class UploadFileForm(forms.Form):
             'class': 'form-control form-control-lg',
             'accept': '.xlsx,.xls'
         })
-    ) 
+    )

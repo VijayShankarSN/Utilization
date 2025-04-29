@@ -1,0 +1,1767 @@
+{% extends 'util_report/base.html' %}
+
+{% block title %}Utilization Summary{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --oracle-red: #C74634;
+        --oracle-dark-blue: #0F3B70;
+        --oracle-blue: #1A4E8C;
+        --oracle-light-blue: #3774B3;
+        --oracle-grey: #F5F5F5;
+        --oracle-text: #222222;
+        --oracle-dark-grey: #333333;
+        --oracle-card-bg: #FFFFFF;
+        --oracle-card-bg-dark: #232f3e;
+        --oracle-card-bg-dark-alt: #26334d;
+        --oracle-border: #D0D0D0;
+        --oracle-green: #10B981;
+        --oracle-green-bright: #22d3ee;
+        --oracle-red-bright: #f87171;
+        --oracle-blue-bright: #3774B3;
+        --oracle-neutral: #6366f1;
+    }
+
+    [data-bs-theme="dark"] {
+        --oracle-grey: #151D29;
+        --oracle-light-blue: #3774B3;
+        --oracle-text: #F4F4F4;
+        --oracle-card-bg: var(--oracle-card-bg-dark);
+        --oracle-card-bg-alt: var(--oracle-card-bg-dark-alt);
+        --oracle-border: #2A3A4A;
+        --oracle-blue-bright: #3774B3;
+    }
+
+    .oracle-container, .oracle-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+        background: none !important;
+    }
+
+    .oracle-hero {
+        background: linear-gradient(90deg, var(--oracle-dark-blue) 0%, var(--oracle-light-blue) 100%);
+        color: white;
+        padding: 20px 0 28px 0;
+        margin-bottom: 18px;
+        border-radius: 10px;
+    }
+
+    .oracle-hero-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    .oracle-title {
+        font-size: 32px;
+        font-weight: 300;
+        margin-bottom: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .oracle-legend {
+        display: flex;
+        background-color: var(--oracle-card-bg);
+        border-radius: 8px;
+        padding: 6px 10px;
+        justify-content: center;
+        border: 1px solid var(--oracle-border);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        margin-bottom: 12px;
+        gap: 18px;
+    }
+
+    [data-bs-theme="dark"] .oracle-legend {
+        background-color: var(--oracle-card-bg-alt);
+        border-color: var(--oracle-border);
+    }
+
+    .oracle-legend-item {
+        display: flex;
+        align-items: center;
+        margin: 0 30px;
+    }
+
+    .oracle-legend-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        margin-right: 8px;
+    }
+
+    .oracle-legend-dams {
+        background-color: var(--oracle-blue);
+    }
+
+    .oracle-legend-capable {
+        background-color: var(--oracle-red);
+    }
+
+    .oracle-legend-trend-up {
+        background-color: #10B981;
+    }
+
+    .oracle-legend-trend-down {
+        background-color: #EF4444;
+    }
+
+    .oracle-legend-label {
+        font-size: 14px;
+        color: var(--oracle-text);
+        font-weight: 500;
+    }
+
+    .oracle-section {
+        margin-bottom: 38px;
+    }
+
+    .oracle-section-title {
+        font-size: 1.45rem;
+        font-weight: 600;
+        color: var(--oracle-dark-blue);
+        margin-bottom: 18px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--oracle-border);
+        letter-spacing: -0.5px;
+    }
+
+    [data-bs-theme="dark"] .oracle-section-title {
+        color: #fff;
+    }
+
+    .oracle-card {
+        background-color: var(--oracle-card-bg);
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid var(--oracle-border);
+        padding: 20px;
+        height: 400px;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+
+    [data-bs-theme="light"] .oracle-card {
+        background-color: white;
+        border-color: #E6E6E6;
+    }
+
+    .oracle-chart-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--oracle-text);
+        margin-bottom: 15px;
+        text-align: left;
+    }
+
+    [data-bs-theme="light"] .oracle-chart-title {
+        color: var(--oracle-text);
+    }
+
+    .oracle-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 280px;
+    }
+
+    .oracle-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(58, 124, 186, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--oracle-blue);
+        animation: oracle-spin 1s linear infinite;
+    }
+
+    @keyframes oracle-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .oracle-no-data {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 280px;
+        color: #6E6E6E;
+    }
+
+    .oracle-no-data i {
+        font-size: 40px;
+        margin-bottom: 15px;
+        color: #CCCCCC;
+    }
+
+    .oracle-no-data p {
+        font-size: 15px;
+    }
+
+    .oracle-tabs {
+        display: flex;
+        margin-bottom: 18px;
+        border-bottom: 1px solid var(--oracle-border);
+        gap: 2px;
+    }
+
+    .oracle-tab {
+        padding: 8px 18px;
+        font-size: 15px;
+        border-radius: 8px 8px 0 0;
+        margin-bottom: -1px;
+        background: none;
+        border: none;
+        color: var(--oracle-text);
+        font-weight: 500;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .oracle-tab.active {
+        border-bottom-color: var(--oracle-blue);
+        color: var(--oracle-blue);
+        background: var(--oracle-card-bg);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    [data-bs-theme="dark"] .oracle-tab.active {
+        background: var(--oracle-card-bg-alt);
+        color: var(--oracle-blue-bright);
+        border-bottom-color: var(--oracle-blue-bright);
+    }
+
+    .oracle-tab:hover:not(.active) {
+        background-color: var(--oracle-grey);
+        color: var(--oracle-blue);
+    }
+
+    [data-bs-theme="dark"] .oracle-tab:hover:not(.active) {
+        background-color: var(--oracle-card-bg-alt);
+        color: var(--oracle-blue-bright);
+    }
+
+    .oracle-tab-content {
+        display: none;
+    }
+
+    .oracle-tab-content.active {
+        display: block;
+    }
+
+    .trend-card {
+        background-color: var(--oracle-card-bg);
+        border-radius: 18px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+        border: 1.5px solid var(--oracle-border);
+        padding: 28px 22px 22px 22px;
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        min-height: 170px;
+        transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s, background 0.2s;
+        position: relative;
+    }
+
+    [data-bs-theme="dark"] .trend-card {
+        background-color: var(--oracle-card-bg-alt);
+        border-color: var(--oracle-blue-bright);
+    }
+
+    .trend-card:hover {
+        box-shadow: 0 6px 24px rgba(0,0,0,0.16);
+        border-color: var(--oracle-blue);
+        transform: translateY(-2px) scale(1.012);
+        background: var(--oracle-grey);
+    }
+
+    [data-bs-theme="dark"] .trend-card:hover {
+        background: #1a2332;
+        border-color: var(--oracle-blue-bright);
+    }
+
+    .trend-info {
+        flex: 1;
+    }
+
+    .trend-title {
+        font-size: 1.08rem;
+        font-weight: 600;
+        margin-bottom: 7px;
+        color: var(--oracle-text);
+    }
+
+    .trend-value {
+        font-size: 2.3rem;
+        font-weight: 700;
+        color: var(--oracle-blue);
+        margin-bottom: 6px;
+        letter-spacing: -1px;
+    }
+
+    [data-bs-theme="dark"] .trend-value {
+        color: var(--oracle-blue-bright);
+    }
+
+    .trend-change {
+        font-size: 1.08rem;
+        display: flex;
+        align-items: center;
+        margin-top: 2px;
+        font-weight: 500;
+    }
+
+    .trend-up {
+        color: var(--oracle-green);
+    }
+
+    [data-bs-theme="dark"] .trend-up {
+        color: var(--oracle-green-bright);
+    }
+
+    .trend-down {
+        color: var(--oracle-red);
+    }
+
+    [data-bs-theme="dark"] .trend-down {
+        color: var(--oracle-red-bright);
+    }
+
+    .trend-metric {
+        margin-top: 7px;
+        font-size: 0.98rem;
+        color: var(--oracle-text);
+        opacity: 0.7;
+    }
+
+    [data-bs-theme="dark"] .trend-metric {
+        color: #e0e6f0;
+        opacity: 0.8;
+    }
+
+    .trend-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 18px;
+        font-size: 1.5rem;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+        transition: background 0.2s;
+    }
+
+    .trend-icon-up {
+        background-color: var(--oracle-green);
+    }
+
+    [data-bs-theme="dark"] .trend-icon-up {
+        background-color: var(--oracle-green-bright);
+    }
+
+    .trend-icon-down {
+        background-color: var(--oracle-red);
+    }
+
+    [data-bs-theme="dark"] .trend-icon-down {
+        background-color: var(--oracle-red-bright);
+    }
+
+    .trend-icon-neutral {
+        background-color: var(--oracle-blue);
+    }
+
+    [data-bs-theme="dark"] .trend-icon-neutral {
+        background-color: var(--oracle-blue-bright);
+    }
+
+    .trend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+        gap: 28px;
+        margin-bottom: 18px;
+    }
+
+    @media (max-width: 900px) {
+        .trend-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .trend-metric {
+        display: flex;
+        align-items: center;
+        margin-top: 5px;
+    }
+
+    .trend-metric-label {
+        font-size: 12px;
+        color: #6B7280;
+        margin-right: 5px;
+    }
+
+    .trend-metric-value {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--oracle-text);
+    }
+
+    /* Additional styles for utilization resources charts */
+    .util-resource-chart-container {
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .resource-stat-card {
+        background-color: var(--oracle-card-bg);
+        border-radius: 8px;
+        border: 1px solid var(--oracle-border);
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .resource-stat-number {
+        font-size: 32px;
+        font-weight: 500;
+        color: var(--oracle-blue);
+        margin-bottom: 5px;
+    }
+    
+    .resource-stat-label {
+        font-size: 14px;
+        color: var(--oracle-text);
+    }
+    
+    .stat-danger {
+        color: var(--oracle-red);
+    }
+    
+    .stat-warning {
+        color: #F59E0B;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Oracle-style Hero Section -->
+    <div class="oracle-hero">
+        <div class="oracle-hero-content">
+            <h1 class="oracle-title">Utilization Summary</h1>
+        </div>
+    </div>
+
+    <!-- Oracle-style Content Area -->
+    <div class="oracle-content">
+        <!-- Legend with Oracle styling -->
+        <div class="oracle-legend">
+            <div class="oracle-legend-item">
+                <div class="oracle-legend-color oracle-legend-dams"></div>
+                <div class="oracle-legend-label">DAMS Utilization</div>
+            </div>
+            <div class="oracle-legend-item">
+                <div class="oracle-legend-color oracle-legend-capable"></div>
+                <div class="oracle-legend-label">Capable Utilization</div>
+            </div>
+        </div>
+
+        <!-- Oracle-style tabs -->
+        <div class="oracle-tabs">
+            <button class="oracle-tab active" data-tab="dashboard">Dashboard</button>
+            <button class="oracle-tab" data-tab="low-utilization">Low Utilization</button>
+            <button class="oracle-tab" data-tab="trends">Trends</button>
+        </div>
+
+        <!-- Dashboard Tab Content -->
+        <div id="dashboard" class="oracle-tab-content active">
+            <!-- Monthly Section -->
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Monthly Performance</h2>
+                <div class="oracle-card">
+                    <h3 class="oracle-chart-title">Monthly Utilization</h3>
+                    <div id="monthly-chart-loading" class="oracle-loading">
+                        <div class="oracle-spinner"></div>
+                    </div>
+                    <div id="monthly-chart-container" style="display: none; height: 330px;">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                    <div id="monthly-no-data" class="oracle-no-data" style="display: none;">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>No monthly data available</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quarterly Section -->
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Quarterly Insights</h2>
+                <div class="oracle-card">
+                    <h3 class="oracle-chart-title">Quarterly Utilization</h3>
+                    <div id="quarterly-chart-loading" class="oracle-loading">
+                        <div class="oracle-spinner"></div>
+                    </div>
+                    <div id="quarterly-chart-container" style="display: none; height: 330px;">
+                        <canvas id="quarterlyChart"></canvas>
+                    </div>
+                    <div id="quarterly-no-data" class="oracle-no-data" style="display: none;">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>No quarterly data available</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yearly Section -->
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Annual Overview</h2>
+                <div class="oracle-card">
+                    <h3 class="oracle-chart-title">Yearly Utilization</h3>
+                    <div id="yearly-chart-loading" class="oracle-loading">
+                        <div class="oracle-spinner"></div>
+                    </div>
+                    <div id="yearly-chart-container" style="display: none; height: 330px;">
+                        <canvas id="yearlyChart"></canvas>
+                    </div>
+                    <div id="yearly-no-data" class="oracle-no-data" style="display: none;">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>No yearly data available</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Utilization Tab Content -->
+        <div id="low-utilization" class="oracle-tab-content">
+            <!-- Resource Utilization Statistics section -->
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Resource Utilization Statistics</h2>
+                <div class="oracle-date-display mb-3" style="font-size: 14px; color: var(--oracle-text); font-style: italic;"></div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="resource-stat-card text-center">
+                            <div class="resource-stat-number stat-danger" id="below-35-count">0</div>
+                            <div class="resource-stat-label">Resources Below 35% Utilization</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="resource-stat-card text-center">
+                            <div class="resource-stat-number stat-warning" id="below-50-count">0</div>
+                            <div class="resource-stat-label">Resources Below 50% Utilization</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Visualization Section -->
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Low Utilization Breakdown</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="oracle-card">
+                            <h3 class="oracle-chart-title">RDM Distribution</h3>
+                            <div class="util-resource-chart-container">
+                                <canvas id="rdmDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="oracle-card">
+                            <h3 class="oracle-chart-title">Billing Type Distribution</h3>
+                            <div class="util-resource-chart-container">
+                                <canvas id="billingDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Tables Section -->
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Low Utilization Resources (4-Week Average)</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="oracle-card" style="height: auto;">
+                            <h3 class="oracle-chart-title">Below 35% Average Utilization</h3>
+                            <div id="below-35-loading" class="oracle-loading">
+                                <div class="oracle-spinner"></div>
+                            </div>
+                            <div id="below-35-container" style="display: none;">
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table" id="below-35-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Resource</th>
+                                                <th>Avg Utilization %</th>
+                                                <th>Billing Type</th>
+                                                <th>RDM</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Will be populated by JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="below-35-no-data" class="oracle-no-data" style="display: none;">
+                                <i class="fas fa-users"></i>
+                                <p>No resources below 35% average utilization</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="oracle-card" style="height: auto;">
+                            <h3 class="oracle-chart-title">Below 50% Average Utilization</h3>
+                            <div id="below-50-loading" class="oracle-loading">
+                                <div class="oracle-spinner"></div>
+                            </div>
+                            <div id="below-50-container" style="display: none;">
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table" id="below-50-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Resource</th>
+                                                <th>Avg Utilization %</th>
+                                                <th>Billing Type</th>
+                                                <th>RDM</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Will be populated by JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="below-50-no-data" class="oracle-no-data" style="display: none;">
+                                <i class="fas fa-users"></i>
+                                <p>No resources below 50% average utilization</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trends Tab Content -->
+        <div id="trends" class="oracle-tab-content">
+            <!-- Trends Legend -->
+            <div class="oracle-legend">
+                <div class="oracle-legend-item">
+                    <div class="oracle-legend-color oracle-legend-trend-up"></div>
+                    <div class="oracle-legend-label">Improving</div>
+                </div>
+                <div class="oracle-legend-item">
+                    <div class="oracle-legend-color oracle-legend-trend-down"></div>
+                    <div class="oracle-legend-label">Declining</div>
+                </div>
+            </div>
+
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">Key Metrics</h2>
+                <div class="trend-grid">
+                    <!-- DAMS Utilization Trend -->
+                    <div class="trend-card">
+                        <div class="trend-info">
+                            <div class="trend-title">DAMS Utilization</div>
+                            <div class="trend-value">85.4%</div>
+                            <div class="trend-change trend-up">
+                                <i class="fas fa-arrow-up"></i> +2.9% from last year
+                            </div>
+                            <div class="trend-metric">
+                                <span class="trend-metric-label">12-month average:</span>
+                                <span class="trend-metric-value">83.1%</span>
+                            </div>
+                        </div>
+                        <div class="trend-icon trend-icon-up">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+
+                    <!-- Capable Utilization Trend -->
+                    <div class="trend-card">
+                        <div class="trend-info">
+                            <div class="trend-title">Capable Utilization</div>
+                            <div class="trend-value">90.1%</div>
+                            <div class="trend-change trend-up">
+                                <i class="fas fa-arrow-up"></i> +2.2% from last year
+                            </div>
+                            <div class="trend-metric">
+                                <span class="trend-metric-label">12-month average:</span>
+                                <span class="trend-metric-value">88.7%</span>
+                            </div>
+                        </div>
+                        <div class="trend-icon trend-icon-up">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+
+                    <!-- Utilization Gap Trend -->
+                    <div class="trend-card">
+                        <div class="trend-info">
+                            <div class="trend-title">Utilization Gap</div>
+                            <div class="trend-value">4.7%</div>
+                            <div class="trend-change trend-down">
+                                <i class="fas fa-arrow-down"></i> -0.7% from last year
+                            </div>
+                            <div class="trend-metric">
+                                <span class="trend-metric-label">12-month average:</span>
+                                <span class="trend-metric-value">5.6%</span>
+                            </div>
+                        </div>
+                        <div class="trend-icon trend-icon-up">
+                            <i class="fas fa-compress-alt"></i>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Growth Trend -->
+                    <div class="trend-card">
+                        <div class="trend-info">
+                            <div class="trend-title">Monthly Growth</div>
+                            <div class="trend-value">+1.2%</div>
+                            <div class="trend-change trend-down">
+                                <i class="fas fa-arrow-down"></i> -0.3% from previous month
+                            </div>
+                            <div class="trend-metric">
+                                <span class="trend-metric-label">3-month average:</span>
+                                <span class="trend-metric-value">+1.5%</span>
+                            </div>
+                        </div>
+                        <div class="trend-icon trend-icon-down">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                    </div>
+
+                    <!-- Q3 vs Q2 Trend -->
+                    <div class="trend-card">
+                        <div class="trend-info">
+                            <div class="trend-title">Q3 vs Q2 Change</div>
+                            <div class="trend-value">+2.6%</div>
+                            <div class="trend-change trend-up">
+                                <i class="fas fa-arrow-up"></i> Better than Q2 (+1.9%)
+                            </div>
+                            <div class="trend-metric">
+                                <span class="trend-metric-label">Year-over-year:</span>
+                                <span class="trend-metric-value">+3.4%</span>
+                            </div>
+                        </div>
+                        <div class="trend-icon trend-icon-up">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                    </div>
+
+                    <!-- Resource Efficiency -->
+                    <div class="trend-card">
+                        <div class="trend-info">
+                            <div class="trend-title">Resource Efficiency</div>
+                            <div class="trend-value">87.3%</div>
+                            <div class="trend-change trend-up">
+                                <i class="fas fa-arrow-up"></i> +1.8% from last quarter
+                            </div>
+                            <div class="trend-metric">
+                                <span class="trend-metric-label">Target:</span>
+                                <span class="trend-metric-value">90.0%</span>
+                            </div>
+                        </div>
+                        <div class="trend-icon trend-icon-up">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="oracle-section">
+                <h2 class="oracle-section-title">6-Month Trend Analysis</h2>
+                <div class="oracle-card">
+                    <h3 class="oracle-chart-title">Utilization Trends</h3>
+                    <div id="trend-chart-container" style="height: 330px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Chart defaults for website theme
+        Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
+        Chart.defaults.color = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? "#F9FAFB" : "#1F2937";
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+        
+        // Tab functionality
+        document.querySelectorAll('.oracle-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.oracle-tab').forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Hide all tab content
+                document.querySelectorAll('.oracle-tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Show selected tab content
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Fetch utilization data and low utilization resources
+        fetchUtilizationData();
+        fetchLowUtilizationResources();
+    });
+
+    // Function to fetch low utilization resources
+    function fetchLowUtilizationResources() {
+        fetch('/get-low-utilization-resources/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Process data for charts and tables
+                processLowUtilizationData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching low utilization resources:', error);
+                document.getElementById('below-35-loading').style.display = 'none';
+                document.getElementById('below-50-loading').style.display = 'none';
+                document.getElementById('below-35-no-data').style.display = 'flex';
+                document.getElementById('below-50-no-data').style.display = 'flex';
+            });
+    }
+    
+    function processLowUtilizationData(data) {
+        // Display the month-end date
+        if (data.month_end_date) {
+            const monthEndDate = new Date(data.month_end_date);
+            const formattedDate = monthEndDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            $('.oracle-date-display').text(`Data as of: ${formattedDate} (4-week average)`);
+        }
+        
+        // Process below 35% data
+        const below35 = data.below_35 || [];
+        document.getElementById('below-35-loading').style.display = 'none';
+        document.getElementById('below-35-count').textContent = below35.length;
+        
+        if (below35.length === 0) {
+            document.getElementById('below-35-no-data').style.display = 'flex';
+        } else {
+            document.getElementById('below-35-container').style.display = 'block';
+            const tableBody = document.querySelector('#below-35-table tbody');
+            tableBody.innerHTML = '';
+            
+            below35.forEach(resource => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${resource.resource_email || resource.name}</td>
+                    <td>${(resource.individual_utilization || resource.avg_utilization * 100).toFixed(2)}%</td>
+                    <td>${resource.billing || resource.billing_type || 'N/A'}</td>
+                    <td>${resource.rdm || 'N/A'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Process below 50% data
+        const below50 = data.below_50 || [];
+        document.getElementById('below-50-loading').style.display = 'none';
+        
+        // Calculate total resources and set count for below 50%
+        // This handles resources that are in both below35 and below50
+        const uniqueResources = new Set();
+        
+        // Add all resources to the set to get total unique count
+        below35.forEach(resource => uniqueResources.add(resource.resource_email || resource.name));
+        below50.forEach(resource => uniqueResources.add(resource.resource_email || resource.name));
+        
+        document.getElementById('total-resources').textContent = uniqueResources.size;
+        document.getElementById('below-50-count').textContent = below50.length;
+        
+        if (below50.length === 0) {
+            document.getElementById('below-50-no-data').style.display = 'flex';
+        } else {
+            document.getElementById('below-50-container').style.display = 'block';
+            const tableBody = document.querySelector('#below-50-table tbody');
+            tableBody.innerHTML = '';
+            
+            // Only include resources that aren't already in the below 35% table
+            const filteredBelow50 = below50.filter(resource => {
+                const utilization = resource.individual_utilization || resource.avg_utilization * 100;
+                return utilization >= 35;
+            });
+            
+            filteredBelow50.forEach(resource => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${resource.resource_email || resource.name}</td>
+                    <td>${(resource.individual_utilization || resource.avg_utilization * 100).toFixed(2)}%</td>
+                    <td>${resource.billing || resource.billing_type || 'N/A'}</td>
+                    <td>${resource.rdm || 'N/A'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Create visualization charts
+        createUtilizationCharts(data);
+    }
+    
+    function createUtilizationCharts(data) {
+        const allResources = [...(data.below_35 || []), ...(data.below_50 || [])];
+        
+        if (allResources.length === 0) return;
+        
+        // Remove duplicates from allResources
+        const uniqueResources = [];
+        const resourceKeys = new Set();
+        
+        allResources.forEach(resource => {
+            const key = resource.resource_email || resource.name;
+            if (!resourceKeys.has(key)) {
+                resourceKeys.add(key);
+                uniqueResources.push(resource);
+            }
+        });
+        
+        // Use statistics from API if available, otherwise calculate from resources
+        if (data.stats) {
+            // Skip utilization distribution chart - removed
+            
+            // Create RDM distribution chart using API data
+            createRdmDistributionChartFromStats(data.stats.rdm_distribution);
+            
+            // Create billing type distribution chart using API data
+            createBillingDistributionChartFromStats(data.stats.billing_types);
+            
+            // Skip average utilization chart - removed
+        } else {
+            // Skip utilization distribution chart - removed
+            createRdmDistributionChart(uniqueResources);
+            createBillingDistributionChart(uniqueResources);
+            // Skip average utilization chart - removed
+        }
+    }
+    
+    function createUtilizationDistributionChartFromStats(rangeStats) {
+        // Extract data from stats
+        const labels = [];
+        const data = [];
+        
+        // Order ranges correctly
+        const orderedRanges = ["0-15%", "15-25%", "25-35%", "35-50%"];
+        
+        // First add ordered ranges
+        orderedRanges.forEach(range => {
+            const stat = rangeStats.find(s => s.range === range);
+            if (stat) {
+                labels.push(stat.range);
+                data.push(stat.count);
+            }
+        });
+        
+        // Create the chart
+        const ctx = document.getElementById('utilizationDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Resources',
+                    data: data,
+                    backgroundColor: [
+                        '#EF4444', // Red for very low
+                        '#F59E0B', // Orange for low
+                        '#FBBF24', // Yellow for medium-low
+                        '#10B981'  // Green for medium
+                    ],
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.raw} resources`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Resources'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createRdmDistributionChartFromStats(rdmStats) {
+        // Sort RDMs by count descending and take top 6
+        const sortedRdms = rdmStats.sort((a, b) => b.count - a.count).slice(0, 6);
+        
+        // Extract data
+        const labels = sortedRdms.map(item => item.name);
+        const data = sortedRdms.map(item => item.count);
+        
+        // Create the chart
+        const ctx = document.getElementById('rdmDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', 
+                        '#EC4899', '#6366F1'
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} resources (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createBillingDistributionChartFromStats(billingStats) {
+        // Sort billing types by count descending
+        const sortedBilling = billingStats.sort((a, b) => b.count - a.count);
+        
+        // Extract data
+        const labels = sortedBilling.map(item => item.type);
+        const data = sortedBilling.map(item => item.count);
+        
+        // Create the chart
+        const ctx = document.getElementById('billingDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', 
+                        '#EC4899', '#6366F1', '#EF4444', '#14B8A6'
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} resources (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createAverageUtilizationChartFromStats(averages) {
+        // Create the chart using the averages from the API
+        const ctx = document.getElementById('averageUtilizationChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Below 35%', '35-50%', 'All Resources'],
+                datasets: [{
+                    label: 'Average Utilization',
+                    data: [
+                        averages.below_35.toFixed(2),
+                        averages.below_50.toFixed(2),
+                        averages.all.toFixed(2)
+                    ],
+                    backgroundColor: ['#EF4444', '#F59E0B', '#3B82F6'],
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Average: ${context.raw}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 60,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Average Utilization %'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function fetchUtilizationData() {
+        fetch('/get-utilization-data/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Create charts with the fetched data
+                if (data.monthly && data.monthly.labels && data.monthly.labels.length > 0) {
+                    createChart('monthly', data.monthly);
+                } else {
+                    document.getElementById('monthly-chart-loading').style.display = 'none';
+                    document.getElementById('monthly-no-data').style.display = 'flex';
+                }
+                
+                if (data.quarterly && data.quarterly.labels && data.quarterly.labels.length > 0) {
+                    createChart('quarterly', data.quarterly);
+                } else {
+                    document.getElementById('quarterly-chart-loading').style.display = 'none';
+                    document.getElementById('quarterly-no-data').style.display = 'flex';
+                }
+                
+                if (data.yearly && data.yearly.labels && data.yearly.labels.length > 0) {
+                    createYearlyChart(data.yearly);
+                } else {
+                    document.getElementById('yearly-chart-loading').style.display = 'none';
+                    document.getElementById('yearly-no-data').style.display = 'flex';
+                }
+                
+                // Create trend chart with the most recent 6 months of data if available
+                if (data.monthly && data.monthly.labels && data.monthly.labels.length > 0) {
+                    const trendData = {
+                        labels: data.monthly.labels.slice(-6),
+                        dams: data.monthly.dams.slice(-6),
+                        capable: data.monthly.capable.slice(-6),
+                        gap: data.monthly.capable.slice(-6).map((val, idx) => 
+                            Math.max(0, (val - data.monthly.dams.slice(-6)[idx]).toFixed(1))
+                        )
+                    };
+                    createTrendChart(trendData);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching utilization data:', error);
+                // Show no data messages for all charts
+                ['monthly', 'quarterly', 'yearly'].forEach(period => {
+                    document.getElementById(`${period}-chart-loading`).style.display = 'none';
+                    document.getElementById(`${period}-no-data`).style.display = 'flex';
+                });
+            });
+    }
+
+    function createChart(period, data) {
+        const colors = getOracleThemeColors();
+        document.getElementById(`${period}-chart-loading`).style.display = 'none';
+        if (!data || !data.labels || data.labels.length === 0) {
+            document.getElementById(`${period}-no-data`).style.display = 'flex';
+            return;
+        }
+        document.getElementById(`${period}-chart-container`).style.display = 'block';
+        const ctx = document.getElementById(`${period}Chart`).getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'DAMS Utilization (%)',
+                        data: data.dams,
+                        backgroundColor: colors.blue,
+                        borderColor: colors.darkBlue,
+                        borderWidth: 0,
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 35
+                    },
+                    {
+                        label: 'Capable Utilization (%)',
+                        data: data.capable,
+                        backgroundColor: colors.red,
+                        borderColor: colors.red,
+                        borderWidth: 0,
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 35
+                    }
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: colors.cardBg,
+                        titleColor: colors.text,
+                        bodyColor: colors.text,
+                        titleFont: { size: 14, weight: '600' },
+                        bodyFont: { size: 13 },
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw.toFixed(1) + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: colors.border
+                        },
+                        ticks: {
+                            callback: function(value) { return value + '%'; },
+                            font: { size: 12 },
+                            padding: 8
+                        },
+                        title: {
+                            display: true,
+                            text: 'Utilization (%)',
+                            font: { size: 13, weight: '500' },
+                            padding: {top: 0, bottom: 10}
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 12 }, padding: 8 }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createYearlyChart(data) {
+        // Hide loading spinner
+        document.getElementById('yearly-chart-loading').style.display = 'none';
+        
+        // If no data, show the no data message
+        if (!data || !data.labels || data.labels.length === 0) {
+            document.getElementById('yearly-no-data').style.display = 'flex';
+            return;
+        }
+        
+        // Show the chart container
+        document.getElementById('yearly-chart-container').style.display = 'block';
+        
+        // Get the canvas context
+        const ctx = document.getElementById('yearlyChart').getContext('2d');
+        
+        // Create the yearly chart with custom styling for dark theme
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'DAMS Utilization (%)',
+                        data: data.dams,
+                        backgroundColor: '#3B82F6',
+                        borderColor: '#2563EB',
+                        borderWidth: 0,
+                        borderRadius: 0,
+                        barThickness: 50,
+                        maxBarThickness: 70
+                    },
+                    {
+                        label: 'Capable Utilization (%)',
+                        data: data.capable,
+                        backgroundColor: '#EF4444',
+                        borderColor: '#DC2626',
+                        borderWidth: 0,
+                        borderRadius: 0,
+                        barThickness: 50,
+                        maxBarThickness: 70
+                    }
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(249, 250, 251, 0.95)',
+                        titleColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#F9FAFB' : '#1F2937',
+                        bodyColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#F9FAFB' : '#1F2937',
+                        titleFont: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw.toFixed(1) + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: {
+                            color: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'rgba(249, 250, 251, 0.1)' : 'rgba(31, 41, 55, 0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            },
+                            font: {
+                                size: 12
+                            },
+                            padding: 8,
+                            stepSize: 10
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            padding: 8,
+                            color: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#F9FAFB' : '#1F2937'
+                        }
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 0,
+                        bottom: 0
+                    }
+                },
+                backgroundColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#1F2937' : '#FFFFFF'
+            }
+        });
+    }
+    
+    function createTrendChart(data) {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'DAMS Utilization',
+                        data: data.dams,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#3B82F6',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#3B82F6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        tension: 0.2,
+                        fill: true
+                    },
+                    {
+                        label: 'Capable Utilization',
+                        data: data.capable,
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderColor: '#EF4444',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#EF4444',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        tension: 0.2,
+                        fill: true
+                    },
+                    {
+                        label: 'Utilization Gap',
+                        data: data.gap,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderColor: '#10B981',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#10B981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        tension: 0.2,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            pointStyleWidth: 10
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(249, 250, 251, 0.95)',
+                        titleColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#F9FAFB' : '#1F2937',
+                        bodyColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#F9FAFB' : '#1F2937',
+                        titleFont: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.raw.toFixed(1);
+                                return label + ': ' + value + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        min: 80,
+                        max: 100,
+                        grid: {
+                            color: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'rgba(249, 250, 251, 0.1)' : 'rgba(31, 41, 55, 0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Utilization (%)',
+                            font: {
+                                size: 13,
+                                weight: '500'
+                            }
+                        }
+                    },
+                    y1: {
+                        position: 'right',
+                        beginAtZero: true,
+                        min: 0,
+                        max: 10,
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Gap (%)',
+                            font: {
+                                size: 13,
+                                weight: '500'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Fallback functions for backward compatibility
+    
+    function createUtilizationDistributionChart(resources) {
+        // Define utilization ranges
+        const ranges = [
+            { min: 0, max: 15, label: '0-15%' },
+            { min: 15, max: 25, label: '15-25%' },
+            { min: 25, max: 35, label: '25-35%' },
+            { min: 35, max: 50, label: '35-50%' }
+        ];
+        
+        // Count resources in each range
+        const counts = ranges.map(range => {
+            return resources.filter(resource => {
+                const utilization = resource.individual_utilization || resource.avg_utilization * 100;
+                return utilization >= range.min && utilization < range.max;
+            }).length;
+        });
+        
+        // Create the chart
+        const ctx = document.getElementById('utilizationDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ranges.map(range => range.label),
+                datasets: [{
+                    label: 'Resources',
+                    data: counts,
+                    backgroundColor: [
+                        '#EF4444', // Red for very low
+                        '#F59E0B', // Orange for low
+                        '#FBBF24', // Yellow for medium-low
+                        '#10B981'  // Green for medium
+                    ],
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.raw} resources`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Resources'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createRdmDistributionChart(resources) {
+        // Count resources by RDM
+        const rdmCounts = {};
+        resources.forEach(resource => {
+            const rdm = resource.rdm || 'Unknown';
+            rdmCounts[rdm] = (rdmCounts[rdm] || 0) + 1;
+        });
+        
+        // Sort by count descending
+        const sortedRdms = Object.entries(rdmCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6); // Show top 6 RDMs
+        
+        // Create the chart
+        const ctx = document.getElementById('rdmDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: sortedRdms.map(entry => entry[0]),
+                datasets: [{
+                    data: sortedRdms.map(entry => entry[1]),
+                    backgroundColor: [
+                        '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', 
+                        '#EC4899', '#6366F1'
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} resources (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createBillingDistributionChart(resources) {
+        // Count resources by billing type
+        const billingCounts = {};
+        resources.forEach(resource => {
+            const billing = resource.billing || resource.billing_type || 'Unknown';
+            billingCounts[billing] = (billingCounts[billing] || 0) + 1;
+        });
+        
+        // Sort by count descending
+        const sortedBilling = Object.entries(billingCounts)
+            .sort((a, b) => b[1] - a[1]);
+        
+        // Create the chart
+        const ctx = document.getElementById('billingDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sortedBilling.map(entry => entry[0]),
+                datasets: [{
+                    data: sortedBilling.map(entry => entry[1]),
+                    backgroundColor: [
+                        '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', 
+                        '#EC4899', '#6366F1', '#EF4444', '#14B8A6'
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} resources (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createAverageUtilizationChart(resources) {
+        // Group by utilization bands
+        const below35 = resources.filter(r => (r.individual_utilization || r.avg_utilization * 100) < 35);
+        const below50 = resources.filter(r => {
+            const util = r.individual_utilization || r.avg_utilization * 100;
+            return util >= 35 && util < 50;
+        });
+        
+        // Calculate averages
+        const avgBelow35 = below35.reduce((sum, r) => sum + (r.individual_utilization || r.avg_utilization * 100), 0) / (below35.length || 1);
+        const avgBelow50 = below50.reduce((sum, r) => sum + (r.individual_utilization || r.avg_utilization * 100), 0) / (below50.length || 1);
+        const overallAvg = resources.reduce((sum, r) => sum + (r.individual_utilization || r.avg_utilization * 100), 0) / (resources.length || 1);
+        
+        // Create the chart
+        const ctx = document.getElementById('averageUtilizationChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Below 35%', '35-50%', 'Overall Average'],
+                datasets: [{
+                    label: 'Average Utilization',
+                    data: [avgBelow35.toFixed(2), avgBelow50.toFixed(2), overallAvg.toFixed(2)],
+                    backgroundColor: ['#EF4444', '#F59E0B', '#3B82F6'],
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Average: ${context.raw}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 60,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Average Utilization %'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function getOracleThemeColors() {
+        const styles = getComputedStyle(document.documentElement);
+        return {
+            blue: styles.getPropertyValue('--oracle-blue').trim() || '#1A4E8C',
+            red: styles.getPropertyValue('--oracle-red').trim() || '#C74634',
+            darkBlue: styles.getPropertyValue('--oracle-dark-blue').trim() || '#0F3B70',
+            lightBlue: styles.getPropertyValue('--oracle-light-blue').trim() || '#3774B3',
+            cardBg: styles.getPropertyValue('--oracle-card-bg').trim() || '#FFFFFF',
+            text: styles.getPropertyValue('--oracle-text').trim() || '#222222',
+            border: styles.getPropertyValue('--oracle-border').trim() || '#D0D0D0',
+        };
+    }
+</script>
+{% endblock %} 

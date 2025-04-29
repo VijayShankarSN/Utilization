@@ -1,0 +1,1266 @@
+{% extends 'util_report/base.html' %}
+
+{% block title %}View Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .view-reports-container {
+        padding: 1.5rem 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-title {
+        color: #1A365D;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        position: relative;
+        display: inline-block;
+    }
+
+    .page-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 60px;
+        height: 3px;
+        background-color: var(--oracle-red);
+        border-radius: 2px;
+    }
+
+    .page-subtitle {
+        color: var(--text-custom);
+        font-size: 1.1rem;
+        font-weight: 300;
+        margin-bottom: 2rem;
+        opacity: 0.8;
+    }
+
+    /* Oracle-inspired date selector styles */
+    .date-selector {
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-color);
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .date-selector .form-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+
+    .date-selector .form-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .date-selector label {
+        display: block;
+        color: var(--oracle-dark-blue);
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .date-selector select {
+        background-color: var(--bg-custom);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        color: var(--text-custom);
+        font-size: 1rem;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232d3748' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        height: 43px;
+    }
+
+    .date-selector select:hover {
+        border-color: var(--oracle-light-blue);
+    }
+
+    .date-selector select:focus {
+        outline: none;
+        border-color: var(--oracle-medium-blue);
+        box-shadow: 0 0 0 3px rgba(26, 78, 140, 0.15);
+    }
+
+    .download-btn {
+        background-color: #1A365D;
+        color: white !important;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        white-space: nowrap;
+        height: 43px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    }
+
+    .download-btn:hover {
+        background-color: #2C5282;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        color: white !important;
+        text-decoration: none;
+    }
+
+    .download-btn i {
+        font-size: 1.2rem;
+    }
+
+    .download-btn:disabled {
+        background-color: #CBD5E0;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Dark mode support for date selector */
+    [data-bs-theme="dark"] .date-selector {
+        background-color: var(--card-bg);
+        border-color: var(--border-color);
+    }
+
+    [data-bs-theme="dark"] .date-selector label {
+        color: #E2E8F0;
+    }
+
+    [data-bs-theme="dark"] .date-selector select {
+        background-color: rgba(15, 23, 42, 0.5);
+        border-color: var(--border-color);
+        color: #E2E8F0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    }
+
+    [data-bs-theme="dark"] .date-selector select:hover {
+        border-color: var(--oracle-light-blue);
+    }
+
+    .result-card {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: none;
+    }
+
+    .result-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(0,0,0,0.12);
+    }
+
+    .table-responsive {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--redwood-secondary) transparent;
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        height: 540px;
+        max-height: 540px;
+        width: 100%;
+    }
+
+    .table-responsive::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background-color: #2C5282;
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-corner {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .table {
+        margin: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table thead {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .table th {
+        background-color: #1A365D !important;
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.75rem 0.6rem;
+        border-color: rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+    }
+
+    .table td {
+        padding: 0.5rem 0.6rem;
+        border-color: rgba(255, 255, 255, 0.1);
+        vertical-align: middle;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+
+    /* Column-specific styles */
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+        text-align: left;
+        min-width: 200px;
+        padding-left: 1rem;
+    }
+
+    .table td:nth-child(1) {
+        color: var(--redwood-secondary);
+    }
+
+    /* Numeric columns */
+    .table th:nth-child(2),
+    .table td:nth-child(2),
+    .table th:nth-child(3),
+    .table td:nth-child(3),
+    .table th:nth-child(4),
+    .table td:nth-child(4),
+    .table th:nth-child(5),
+    .table td:nth-child(5),
+    .table th:nth-child(6),
+    .table td:nth-child(6),
+    .table th:nth-child(7),
+    .table td:nth-child(7),
+    .table th:nth-child(8),
+    .table td:nth-child(8),
+    .table th:nth-child(9),
+    .table td:nth-child(9),
+    .table th:nth-child(10),
+    .table td:nth-child(10) {
+        text-align: right;
+        min-width: 100px;
+        padding-right: 1rem;
+        font-family: 'Monaco', 'Consolas', monospace;
+    }
+
+    /* Text columns - Status, RDM, Track, Billing */
+    .table th:nth-child(11),
+    .table td:nth-child(11),
+    .table th:nth-child(12),
+    .table td:nth-child(12),
+    .table th:nth-child(13),
+    .table td:nth-child(13),
+    .table th:nth-child(14),
+    .table td:nth-child(14) {
+        text-align: left;
+        min-width: 120px;
+        padding-left: 1rem;
+    }
+
+    /* Comments columns */
+    .table th:nth-child(15),
+    .table td:nth-child(15),
+    .table th:nth-child(16),
+    .table td:nth-child(16) {
+        text-align: left;
+        min-width: 200px;
+        padding-left: 1rem;
+    }
+
+    /* Ensure consistent row height */
+    .table tr {
+        height: 40px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .table-hover tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .table-hover tbody tr:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: scale(1.01);
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Ensure table headers stay visible */
+    .table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--sidebar-bg);
+    }
+
+    /* Add loading animation for data */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .table tbody tr {
+        animation: fadeIn 0.3s ease-out forwards;
+        animation-delay: calc(var(--row-index, 0) * 0.05s);
+        opacity: 0;
+    }
+
+    .no-data-message {
+        text-align: center;
+        padding: 3rem;
+        color: #4a5568;
+        font-size: 1.2rem;
+        opacity: 0.8;
+    }
+
+    .no-data-message i {
+        font-size: 2rem;
+        color: #cbd5e0;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    /* Editable cell styles */
+    .editable {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .editable:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .editable.editing {
+        padding: 0;
+    }
+
+    .editable.editing textarea {
+        width: 100%;
+        height: 100%;
+        padding: 0.75rem 1rem;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        color: inherit;
+        font-size: inherit;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .editable.editing textarea:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Dark mode adjustments */
+    [data-theme="dark"] .table th {
+        color: #f7fafc;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Dark mode adjustments */
+    [data-bs-theme="dark"] .summary-value {
+        color: #2C5282;
+    }
+
+    .form-select:hover, .filter-select:hover {
+        border-color: #2C5282;
+    }
+
+    .form-select:focus, .filter-select:focus {
+        outline: none;
+        border-color: #1A365D;
+        box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.15);
+    }
+
+    [data-bs-theme="dark"] .date-selector select:hover,
+    [data-bs-theme="dark"] .filter-section select:hover,
+    [data-bs-theme="dark"] .form-select:hover,
+    [data-bs-theme="dark"] .filter-select:hover {
+        border-color: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .date-selector select:focus,
+    [data-bs-theme="dark"] .filter-section select:focus,
+    [data-bs-theme="dark"] .form-select:focus,
+    [data-bs-theme="dark"] .filter-select:focus {
+        border-color: #1A365D;
+        box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.25);
+    }
+
+    /* Oracle-style search and filter section */
+    .search-filter-section {
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-color);
+    }
+
+    .search-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        align-items: end;
+    }
+
+    .search-filter-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-filter-label {
+        color: var(--oracle-dark-blue);
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    [data-bs-theme="dark"] .search-filter-label {
+        color: #E2E8F0;
+    }
+
+    .search-input {
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: var(--text-custom);
+        background-color: var(--bg-custom);
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--oracle-medium-blue);
+        box-shadow: 0 0 0 3px rgba(26, 78, 140, 0.15);
+    }
+
+    .filter-select {
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: var(--text-custom);
+        background-color: var(--bg-custom);
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232d3748' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        padding-right: 2.5rem;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--oracle-medium-blue);
+        box-shadow: 0 0 0 3px rgba(26, 78, 140, 0.15);
+    }
+
+    [data-bs-theme="dark"] .filter-select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    }
+
+    .header-section {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: stretch;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .header-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        min-height: 90px;
+        flex: 1;
+        justify-content: space-between;
+    }
+
+    [data-bs-theme="dark"] .header-card {
+        background: var(--card-bg);
+        border-color: var(--border-color);
+    }
+
+    .header-card-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        margin-bottom: 0.75rem;
+    }
+
+    [data-bs-theme="dark"] .header-card-title {
+        color: #E5E7EB;
+    }
+
+    .header-card-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        height: 100%;
+    }
+
+    .date-select {
+        background-color: #FFFFFF;
+        border: 1px solid #D1D5DB;
+        border-radius: 6px;
+        padding: 0.5rem 2rem 0.5rem 1rem;
+        font-size: 0.95rem;
+        color: #1F2937;
+        min-width: 200px;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1.25rem;
+    }
+
+    [data-bs-theme="dark"] .date-select {
+        background-color: var(--bg-custom);
+        border-color: var(--border-color);
+        color: #E5E7EB;
+    }
+
+    .utilization-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #1A365D;
+        line-height: 1;
+    }
+
+    [data-bs-theme="dark"] .utilization-value {
+        color: #60A5FA;
+    }
+
+    .utilization-label {
+        font-size: 0.875rem;
+        color: #6B7280;
+        font-weight: 500;
+    }
+
+    [data-bs-theme="dark"] .utilization-label {
+        color: #9CA3AF;
+    }
+
+    .download-button {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        white-space: nowrap;
+        height: 38px;
+    }
+
+    .download-button:hover {
+        background-color: #2C5282;
+        color: white;
+        text-decoration: none;
+    }
+
+    .download-button i {
+        font-size: 1rem;
+    }
+
+    /* Add new styles for the search filter dropdown */
+    .table-header-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .search-filter-btn {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .search-filter-btn:hover {
+        background-color: #2C5282;
+    }
+
+    .search-filter-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        z-index: 10;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        min-width: 320px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: none;
+    }
+
+    .search-filter-dropdown.show {
+        display: block;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .search-filter-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-custom);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .close-dropdown {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        background: none;
+        border: none;
+        color: var(--text-custom);
+        font-size: 1rem;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+
+    .close-dropdown:hover {
+        opacity: 1;
+    }
+
+    .filter-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        gap: 0.75rem;
+    }
+
+    .filter-reset {
+        background: none;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        color: var(--text-custom);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-reset:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-apply {
+        background: #1A365D;
+        border: none;
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-apply:hover {
+        background: #2C5282;
+    }
+
+    /* Dark mode adjustments */
+    [data-bs-theme="dark"] .search-filter-btn {
+        background: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .search-filter-btn:hover {
+        background: #1A365D;
+    }
+
+    [data-bs-theme="dark"] .filter-reset:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-bs-theme="dark"] .filter-apply {
+        background: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .filter-apply:hover {
+        background: #1A365D;
+    }
+
+    .filter-bar {
+        display: flex;
+        gap: 1rem;
+        background-color: #1e2a3a;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .filter-column {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .filter-column-label {
+        color: #cbd5e0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .filter-input {
+        background-color: #2d3748;
+        border: 1px solid #4a5568;
+        border-radius: 0.25rem;
+        color: #e2e8f0;
+        padding: 0.75rem 1rem;
+        width: 100%;
+        transition: all 0.2s;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+
+    .filter-select {
+        background-color: #2d3748;
+        border: 1px solid #4a5568;
+        border-radius: 0.25rem;
+        color: #e2e8f0;
+        padding: 0.75rem 1rem;
+        padding-right: 2.5rem;
+        width: 100%;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        transition: all 0.2s;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+
+    /* Add new styles for the action buttons positioned outside the card */
+    .page-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .action-btn {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.625rem;
+        font-size: 1rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        cursor: pointer;
+        width: 42px;
+        height: 42px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .action-btn:hover {
+        background-color: #2C5282;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Dark mode adjustments */
+    [data-bs-theme="dark"] .action-btn {
+        background: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .action-btn:hover {
+        background: #1A365D;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="view-reports-container">
+    <div class="header-section">
+        <div class="header-card">
+            <div class="header-card-title">Select Report Date</div>
+            <div class="header-card-content">
+                <form method="GET" action="" id="dateForm">
+                    <select name="date" id="date-select" class="date-select" onchange="document.getElementById('dateForm').submit()">
+                        <option value="">Choose a date</option>
+                        {% for date in available_dates %}
+                            <option value="{{ date|date:'Y-m-d' }}" {% if selected_date == date|date:'Y-m-d' %}selected{% endif %}>
+                                {{ date|date:'Y-m-d' }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+                </div>
+        </div>
+
+                {% if selected_date %}
+        <div class="header-card">
+            <div class="header-card-title">DAMS UTILIZATION</div>
+            <div class="header-card-content">
+                <div class="utilization-value">{{ dams_utilization|floatformat:3 }}%</div>
+            </div>
+        </div>
+
+        <div class="header-card">
+            <div class="header-card-title">Capable Utilization</div>
+            <div class="header-card-content">
+                <div class="utilization-value">{{ capable_utilization|default:0|floatformat:3 }}%</div>
+            </div>
+        </div>
+
+        <div class="header-card">
+            <div class="header-card-title">Actions</div>
+            <div class="header-card-content">
+                <a href="{% url 'download_report' %}?date={{ selected_date }}" class="download-button">
+                        <i class="fas fa-download"></i>
+                        Download Excel
+                    </a>
+            </div>
+        </div>
+                {% endif %}
+            </div>
+
+    {% if reports %}
+        <!-- Page actions outside the result card -->
+        <div class="page-actions">
+            <button type="button" id="searchBtn" class="action-btn" title="Search">
+                <i class="fas fa-search"></i>
+            </button>
+            <button type="button" id="filterBtn" class="action-btn" title="Filter">
+                <i class="fas fa-filter"></i>
+            </button>
+    </div>
+
+        <div class="result-card">
+            <div class="table-responsive">
+                {% if report_data %}
+                    {{ report_data|safe }}
+                {% else %}
+                    <div class="no-data-message">
+                        <i class="fas fa-database"></i>
+                        No data available for the selected date.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Search dropdown -->
+        <div id="searchDropdown" class="search-filter-dropdown">
+            <button type="button" class="close-dropdown" id="closeSearchDropdown">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="search-filter-form">
+                <div class="filter-group">
+                    <label class="filter-label" for="emailSearch">Resource Email</label>
+                <input type="text" id="emailSearch" class="search-input" placeholder="Search by email...">
+            </div>
+                <div class="filter-actions">
+                    <button type="button" id="resetSearch" class="filter-reset">Reset</button>
+                    <button type="button" id="applySearch" class="filter-apply">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter dropdown -->
+        <div id="filterDropdown" class="search-filter-dropdown">
+            <button type="button" class="close-dropdown" id="closeFilterDropdown">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="search-filter-form">
+                <div class="filter-group">
+                    <label class="filter-label" for="rdmFilter">RDM</label>
+                <select id="rdmFilter" class="filter-select">
+                    <option value="">All RDMs</option>
+                    {% for rdm in rdms %}
+                        <option value="{{ rdm }}">{{ rdm }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="trackFilter">Track</label>
+                <select id="trackFilter" class="filter-select">
+                    <option value="">All Tracks</option>
+                    {% for track in tracks %}
+                        <option value="{{ track }}">{{ track }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="billingFilter">Billing</label>
+                <select id="billingFilter" class="filter-select">
+                    <option value="">All Billing</option>
+                    <option value="Billing">Billing</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Next">Next</option>
+                    <option value="Released">Released</option>
+                    <option value="On Bench">On Bench</option>
+                    <option value="Non Billable">Non Billable</option>
+                    <option value="TBD">TBD</option>
+                </select>
+            </div>
+                <div class="filter-actions">
+                    <button type="button" id="resetFilters" class="filter-reset">Reset</button>
+                    <button type="button" id="applyFilters" class="filter-apply">Apply</button>
+        </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // Add row index for staggered animation
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.table tbody tr').forEach((row, index) => {
+            row.style.setProperty('--row-index', index);
+        });
+
+        // Handle editable cells
+        document.querySelectorAll('td[data-field="comments"], td[data-field="spoc_comments"]').forEach(cell => {
+            // Add editable class if it doesn't already have it
+            if (!cell.classList.contains('editable')) {
+                cell.classList.add('editable');
+            }
+            
+            cell.addEventListener('click', function() {
+                if (!this.classList.contains('editing')) {
+                    const currentText = this.textContent.trim();
+                    const id = this.closest('tr').dataset.id; // Get ID from parent row
+                    const field = this.dataset.field;
+                    
+                    console.log("Editing cell with ID:", id, "Field:", field);
+                    
+                    this.classList.add('editing');
+                    const textarea = document.createElement('textarea');
+                    textarea.value = currentText;
+                    textarea.dataset.originalValue = currentText;
+                    
+                    this.textContent = '';
+                    this.appendChild(textarea);
+                    textarea.focus();
+                    
+                    textarea.addEventListener('blur', async function() {
+                        const newValue = this.value.trim();
+                        const originalValue = this.dataset.originalValue;
+                        
+                        if (newValue !== originalValue) {
+                            try {
+                                console.log("Saving comment. ID:", id, "Field:", field, "Value:", newValue);
+                                
+                                const response = await fetch('{% url "update_comments" %}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': getCookie('csrftoken')
+                                    },
+                                    body: JSON.stringify({
+                                        id: id,
+                                        field: field,
+                                        value: newValue
+                                    })
+                                });
+                                
+                                const result = await response.json();
+                                
+                                if (!response.ok) {
+                                    throw new Error(result.error || 'Network response was not ok');
+                                }
+                                
+                                console.log("Save successful:", result);
+                                cell.textContent = newValue;
+                            } catch (error) {
+                                console.error('Error:', error);
+                                alert("Error saving comment: " + error.message);
+                                cell.textContent = originalValue;
+                            }
+                        } else {
+                            cell.textContent = originalValue;
+                        }
+                        
+                        cell.classList.remove('editing');
+                    });
+                }
+            });
+        });
+
+        // Handle search and filter functionality with separate buttons
+        const searchBtn = document.getElementById('searchBtn');
+        const filterBtn = document.getElementById('filterBtn');
+        const searchDropdown = document.getElementById('searchDropdown');
+        const filterDropdown = document.getElementById('filterDropdown');
+        const closeSearchDropdown = document.getElementById('closeSearchDropdown');
+        const closeFilterDropdown = document.getElementById('closeFilterDropdown');
+        const resetSearch = document.getElementById('resetSearch');
+        const applySearch = document.getElementById('applySearch');
+        const resetFilters = document.getElementById('resetFilters');
+        const applyFilters = document.getElementById('applyFilters');
+        const emailSearch = document.getElementById('emailSearch');
+        const rdmFilter = document.getElementById('rdmFilter');
+        const trackFilter = document.getElementById('trackFilter');
+        const billingFilter = document.getElementById('billingFilter');
+        const table = document.querySelector('.table');
+
+        // Position dropdowns relative to buttons
+        function positionDropdown(dropdown, button) {
+            if (!dropdown || !button) return;
+            
+            const buttonRect = button.getBoundingClientRect();
+            dropdown.style.position = 'absolute';
+            dropdown.style.top = `${buttonRect.bottom + window.scrollY + 10}px`;
+            dropdown.style.right = `${window.innerWidth - buttonRect.right}px`;
+            dropdown.style.zIndex = '1000';
+        }
+
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function() {
+                positionDropdown(searchDropdown, searchBtn);
+                searchDropdown.classList.toggle('show');
+                if (filterDropdown.classList.contains('show')) {
+                    filterDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        if (filterBtn) {
+            filterBtn.addEventListener('click', function() {
+                positionDropdown(filterDropdown, filterBtn);
+                filterDropdown.classList.toggle('show');
+                if (searchDropdown.classList.contains('show')) {
+                    searchDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        if (closeSearchDropdown) {
+            closeSearchDropdown.addEventListener('click', function() {
+                searchDropdown.classList.remove('show');
+            });
+        }
+
+        if (closeFilterDropdown) {
+            closeFilterDropdown.addEventListener('click', function() {
+                filterDropdown.classList.remove('show');
+            });
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (searchDropdown && searchBtn) {
+                const isClickInsideSearch = searchDropdown.contains(event.target);
+                const isClickOnSearchBtn = searchBtn.contains(event.target);
+                
+                if (!isClickInsideSearch && !isClickOnSearchBtn && searchDropdown.classList.contains('show')) {
+                    searchDropdown.classList.remove('show');
+                }
+            }
+            
+            if (filterDropdown && filterBtn) {
+                const isClickInsideFilter = filterDropdown.contains(event.target);
+                const isClickOnFilterBtn = filterBtn.contains(event.target);
+                
+                if (!isClickInsideFilter && !isClickOnFilterBtn && filterDropdown.classList.contains('show')) {
+                    filterDropdown.classList.remove('show');
+                }
+            }
+        });
+
+        // Reset search
+        if (resetSearch) {
+            resetSearch.addEventListener('click', function() {
+                if (emailSearch) emailSearch.value = '';
+                
+                // Reset search functionality
+                filterTable(emailSearch?.value.toLowerCase() || '', rdmFilter?.value || '', trackFilter?.value || '', billingFilter?.value || '');
+            });
+        }
+
+        // Apply search
+        if (applySearch) {
+            applySearch.addEventListener('click', function() {
+                const email = emailSearch?.value.toLowerCase() || '';
+                
+                filterTable(email, rdmFilter?.value || '', trackFilter?.value || '', billingFilter?.value || '');
+                searchDropdown.classList.remove('show');
+            });
+        }
+
+        // Reset filters
+        if (resetFilters) {
+            resetFilters.addEventListener('click', function() {
+                if (rdmFilter) rdmFilter.value = '';
+                if (trackFilter) trackFilter.value = '';
+                if (billingFilter) billingFilter.value = '';
+                
+                // Reset filter functionality
+                filterTable(emailSearch?.value.toLowerCase() || '', '', '', '');
+            });
+        }
+
+        // Apply filters
+        if (applyFilters) {
+            applyFilters.addEventListener('click', function() {
+                const rdm = rdmFilter?.value || '';
+                const track = trackFilter?.value || '';
+                const billing = billingFilter?.value || '';
+                
+                filterTable(emailSearch?.value.toLowerCase() || '', rdm, track, billing);
+                filterDropdown.classList.remove('show');
+            });
+        }
+
+        // Function to filter table
+        function filterTable(email, rdm, track, billing) {
+            if (!table) return;
+
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const rowEmail = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+                const rowRdm = row.querySelector('td[data-rdm]')?.textContent || '';
+                const rowTrack = row.querySelector('td[data-track]')?.textContent || '';
+                const rowBilling = row.querySelector('td[data-billing]')?.textContent || '';
+
+                const matchesEmail = !email || rowEmail.includes(email);
+                const matchesRdm = !rdm || rowRdm === rdm;
+                const matchesTrack = !track || rowTrack === track;
+                const matchesBilling = !billing || rowBilling === billing;
+
+                if (matchesEmail && matchesRdm && matchesTrack && matchesBilling) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // Function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %} 
