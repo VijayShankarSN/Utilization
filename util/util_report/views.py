@@ -7,7 +7,7 @@ from .forms import UploadFileForm
 from .utils import process_excel_file, get_available_dates, get_report_for_date
 from django.urls import reverse
 from .models import UtilizationReportModel, UtilizationHistoryModel
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET
 import json
 import pandas as pd
 from io import BytesIO
@@ -1704,4 +1704,59 @@ def update_additional_days(request):
         return JsonResponse({'success': False, 'error': 'Invalid additional days value'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+@require_GET
+def get_rdm_summary(request):
+    """
+    AJAX endpoint to return RDM-wise summary as JSON for the selected date.
+    """
+    selected_date = request.GET.get('date')
+    if not selected_date:
+        return JsonResponse({'error': 'No date provided'}, status=400)
+
+    reports = UtilizationReportModel.objects.filter(date=selected_date)
+    first_report = reports.first()
+    dams_utilization = first_report.dams_utilization if first_report else 0
+    capable_utilization = first_report.capable_utilization if first_report else 0
+
+    rdm_data = {}
+    for report in reports:
+        rdm = report.rdm or 'Unassigned'
+        if rdm not in rdm_data:
+            rdm_data[rdm] = {
+                'resource_count': 0,
+                'billable_hours': 0,
+                'wtd_actuals': 0,
+                'addtnl_days': 0,
+                'partial': 0,
+                'billing': 0,
+                'next': 0
+            }
+        rdm_data[rdm]['resource_count'] += 1
+        rdm_data[rdm]['billable_hours'] += report.billable_hours or 0
+        rdm_data[rdm]['wtd_actuals'] += report.wtd_actuals or 0
+        rdm_data[rdm]['addtnl_days'] += report.addtnl_days or 0
+        if (report.billing or '').lower() == 'partial':
+            rdm_data[rdm]['partial'] += 1
+        if (report.billing or '').lower() == 'billing':
+            rdm_data[rdm]['billing'] += 1
+        if (report.billing or '').lower() == 'next':
+            rdm_data[rdm]['next'] += 1
+
+    summary_rows = []
+    for rdm, vals in rdm_data.items():
+        summary_rows.append({
+            'rdm': rdm,
+            'resource_count': vals['resource_count'],
+            'billable_hours': vals['billable_hours'],
+            'wtd_actuals': vals['wtd_actuals'],
+            'addtnl_days': vals['addtnl_days'],
+            'dams_utilization': dams_utilization,
+            'capable_utilization': capable_utilization,
+            'partial': vals['partial'],
+            'billing': vals['billing'],
+            'next': vals['next']
+        })
+
+    return JsonResponse({'summary': summary_rows, 'dams_utilization': dams_utilization, 'capable_utilization': capable_utilization})
 

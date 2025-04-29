@@ -929,6 +929,9 @@
                         <i class="fas fa-download"></i>
                         Download Excel
                     </a>
+                <button type="button" id="rdmWiseBtn" class="download-button" style="margin-left: 10px;">
+                    <i class="fas fa-table"></i> RDM-Wise Reports
+                </button>
             </div>
         </div>
                 {% endif %}
@@ -1016,9 +1019,31 @@
                     <button type="button" id="resetFilters" class="filter-reset">Reset</button>
                     <button type="button" id="applyFilters" class="filter-apply">Apply</button>
         </div>
+    </div>
+                    </div>
+                {% endif %}
             </div>
+
+<!-- RDM-Wise Summary Modal -->
+<div class="modal fade" id="rdmWiseModal" tabindex="-1" aria-labelledby="rdmWiseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="rdmWiseModalLabel">RDM-Wise Summary Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-    {% endif %}
+      <div class="modal-body">
+        <div id="rdmWiseSummaryTable">
+          <!-- Table will be injected here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="downloadRdmSummary">Download Report</button>
+        <button type="button" class="btn btn-secondary" id="sendRdmSummary">Send Mails</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1262,5 +1287,65 @@
         }
         return cookieValue;
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var rdmWiseBtn = document.getElementById('rdmWiseBtn');
+        var rdmWiseModal = new bootstrap.Modal(document.getElementById('rdmWiseModal'));
+        var rdmWiseSummaryTable = document.getElementById('rdmWiseSummaryTable');
+        var selectedDate = document.getElementById('date-select') ? document.getElementById('date-select').value : '';
+
+        rdmWiseBtn && rdmWiseBtn.addEventListener('click', function() {
+            // Fetch RDM summary via AJAX
+            fetch(`/get_rdm_summary/?date=${selectedDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.summary && data.summary.length > 0) {
+                        let table = `<div class='table-responsive'><table class='table table-bordered table-striped'><thead><tr>
+                            <th>RDM</th>
+                            <th>Resource Count</th>
+                            <th>Billable Hours (MTD)</th>
+                            <th>WTD Actuals</th>
+                            <th>Additional Days</th>
+                            <th>DAMS Utilization</th>
+                            <th>Capable Utilization</th>
+                            <th>Partial Billing</th>
+                            <th>Full Billing</th>
+                            <th>Blocked (Next)</th>
+                        </tr></thead><tbody>`;
+                        data.summary.forEach(row => {
+                            table += `<tr>
+                                <td>${row.rdm}</td>
+                                <td>${row.resource_count}</td>
+                                <td>${row.billable_hours.toFixed(2)}</td>
+                                <td>${row.wtd_actuals.toFixed(2)}</td>
+                                <td>${row.addtnl_days.toFixed(2)}</td>
+                                <td>${row.dams_utilization}</td>
+                                <td>${row.capable_utilization}</td>
+                                <td>${row.partial}</td>
+                                <td>${row.billing}</td>
+                                <td>${row.next}</td>
+                            </tr>`;
+                        });
+                        table += '</tbody></table></div>';
+                        rdmWiseSummaryTable.innerHTML = table;
+                    } else {
+                        rdmWiseSummaryTable.innerHTML = '<div class="alert alert-warning">No RDM summary data available for this date.</div>';
+                    }
+                    rdmWiseModal.show();
+                })
+                .catch(err => {
+                    rdmWiseSummaryTable.innerHTML = '<div class="alert alert-danger">Failed to load RDM summary.</div>';
+                    rdmWiseModal.show();
+                });
+        });
+
+        // Download and Send Mails button stubs
+        document.getElementById('downloadRdmSummary').addEventListener('click', function() {
+            alert('Download functionality to be implemented.');
+        });
+        document.getElementById('sendRdmSummary').addEventListener('click', function() {
+            alert('Send Mails functionality to be implemented.');
+        });
+    });
 </script>
 {% endblock %} 
