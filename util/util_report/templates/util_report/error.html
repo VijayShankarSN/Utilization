@@ -1,0 +1,50 @@
+{% extends "util_report/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h4>Error Viewing Reports</h4>
+        </div>
+        <div class="card-body">
+            <p class="lead">An error occurred while trying to view reports for {{ date }}:</p>
+            <div class="alert alert-danger">
+                {{ error }}
+            </div>
+            <p>This might be due to a database schema mismatch. Please check that your database schema matches your Django models.</p>
+            
+            <div class="mt-4">
+                <a href="{% url 'upload' %}" class="btn btn-primary">Return to Upload</a>
+            </div>
+            
+            {% if debug_info %}
+            <div class="mt-5">
+                <h5>Debug Information</h5>
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>DB Table Name:</strong> {{ debug_info.db_table }}</p>
+                        <p><strong>Total Records in Database:</strong> {{ debug_info.total_records }}</p>
+                        
+                        <p><strong>All Available Dates:</strong></p>
+                        <ul>
+                            {% for date in debug_info.all_dates %}
+                            <li>{{ date }}</li>
+                            {% empty %}
+                            <li>No dates found</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <p><strong>Available Model Fields:</strong></p>
+                        <ul>
+                            {% for field in debug_info.available_fields %}
+                            <li>{{ field }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

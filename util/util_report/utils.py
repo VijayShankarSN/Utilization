@@ -2,23 +2,43 @@ import pandas as pd
 import os
 from datetime import datetime
 from django.conf import settings
-from .models.utilrepo import UtilizationReport
+from .models import UtilizationReportModel
+from django.core.files.storage import FileSystemStorage
+from django.shortcuts import render
+from django.http import JsonResponse
 
-def process_excel_file(file):
-    # Your existing process_excel_file function
-    pass
+def process_excel_file(request, file):
+    fs = FileSystemStorage()
+    filename = fs.save(file.name, file)
+    uploaded_file_url = fs.url(filename)
+    return uploaded_file_url
 
 def get_available_dates():
-    # Get unique dates from the UtilizationReport model
-    dates = UtilizationReport.objects.values_list('date', flat=True).distinct()
-    # Convert dates to strings and sort in descending order
-    date_strings = [date.strftime('%Y-%m-%d') for date in dates if date is not None]
-    return sorted(date_strings, reverse=True)
+    """Get list of available report dates."""
+    dates = UtilizationReportModel.objects.values_list('date', flat=True).distinct().order_by('-date')
+    return [date.strftime('%Y-%m-%d') for date in dates]
 
 def get_report_for_date(date):
+    """
+    Get reports for a specific date.
+    
+    Args:
+        date: Date to retrieve reports for (YYYY-MM-DD format)
+        
+    Returns:
+        QuerySet of UtilizationReportModel objects
+    """
+    try:
+        # Make sure we're retrieving the ID field to enable edit functionality
+        reports = UtilizationReportModel.objects.filter(date=date).order_by('resource_email_address')
+        return reports
+    except Exception:
+        return None
+
+def get_report_for_date_html(date):
     try:
         # Get all reports for the selected date
-        reports = UtilizationReport.objects.filter(date=date)
+        reports = UtilizationReportModel.objects.filter(date=date)
         
         if not reports.exists():
             return None
@@ -27,19 +47,23 @@ def get_report_for_date(date):
         data = []
         for report in reports:
             data.append({
-                'Resource Email Address': report.name,
+                'Resource Email Address': report.resource_email_address,
                 'Administrative': report.administrative,
-                'Billable Hours': report.billable_days,
+                'Billable Hours': report.billable_hours,
+                'Department Mgmt': report.department_mgmt,
+                'Investment': report.investment,
+                'Presales': report.presales,
                 'Training': report.training,
                 'Unassigned': report.unassigned,
                 'Vacation': report.vacation,
                 'Grand Total': report.grand_total,
                 'Last Week': report.last_week,
-                'Status': report.status,
+                'Total Logged': report.total_logged,
                 'Additional Days': report.addtnl_days,
-                'WTD Actual': report.wtd_actual,
+                'RDM': report.rdm,
                 'Track': report.track,
-                'Billing': report.billing
+                'Billing': report.billing,
+                'Status': report.status
             })
         
         df = pd.DataFrame(data)

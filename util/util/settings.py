@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'dataextract',  # Add your app here
+    'util_report',
 ]
 
 MIDDLEWARE = [
@@ -61,14 +61,15 @@ ROOT_URLCONF = 'util.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # Global templates directory
-        'APP_DIRS': True,  # Enable app-specific templates
+        'DIRS': [BASE_DIR / 'templates'],  # Remove global templates directory as we use app-specific templates
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.media',  # Add media context processor
             ],
         },
     },
@@ -83,11 +84,15 @@ WSGI_APPLICATION = 'util.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'utilization',  # Replace with your MySQL database name
-        'USER': 'root',       # Replace with your MySQL username
-        'PASSWORD': 'mysql',   # Replace with your MySQL password
-        'HOST': 'localhost',           # Replace with your MySQL host (default is 'localhost')
-        'PORT': '3306',                # Replace with your MySQL port (default is '3306')
+        'NAME': 'util',
+        'USER': 'root',
+        'PASSWORD': '2003',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'charset': 'utf8mb4',
+        },
     }
 }
 
@@ -127,6 +132,22 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# Session settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 86400  # 24 hours in seconds
+
+# File upload settings
+FILE_UPLOAD_HANDLERS = [
+    'django.core.files.uploadhandler.MemoryFileUploadHandler',
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+]
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25621440  # 25MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25621440  # 25MB
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

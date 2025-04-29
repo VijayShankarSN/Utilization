@@ -1,0 +1,23 @@
+# Django and related packages
+Django>=5.0.2
+django-crispy-forms>=2.1
+
+# Database
+mysqlclient>=2.2.4  # For MySQL database connection
+
+# Excel handling
+pandas>=2.2.0
+openpyxl>=3.1.2  # For .xlsx files
+pyxlsb>=1.0.10   # For .xlsb files
+xlrd>=2.0.1      # For .xls files
+
+# HTML processing
+beautifulsoup4>=4.12.2  # For HTML parsing and manipulation
+
+# Utility packages
+python-dateutil>=2.8.2
+numpy>=1.24.0
+
+# Optional but recommended
+django-debug-toolbar>=4.3.0  # For development debugging
+python-dotenv>=1.0.0        # For environment variables 

@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Resource Allocation System{% endblock %}</title>
+    <!-- Theme initialization script - Must be first -->
+    <script>
+        // Get theme from localStorage or system preference
+        const getPreferredTheme = () => {
+            const storedTheme = localStorage.getItem('theme');
+            if (storedTheme) {
+                return storedTheme;
+            }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        };
+
+        // Apply theme immediately to prevent flashing
+        const theme = getPreferredTheme();
+        document.documentElement.setAttribute('data-bs-theme', theme);
+    </script>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Oracle Sans font (approximated with system fonts) -->
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    {% load static %}
+    <!-- Custom styles -->
+    <style>
+        /* Oracle-inspired color palette - Modified for better contrast */
+        :root {
+            --oracle-red: #C74634;
+            --oracle-dark-blue: #0F3B70; /* Darker blue */
+            --oracle-medium-blue: #1A4E8C; /* Original dark blue as medium */
+            --oracle-light-blue: #3774B3; /* Less bright blue */
+            --oracle-gray-blue: #4D6C86;
+            --oracle-light-gray: #F5F5F5;
+            --oracle-white: #FFFFFF;
+            --oracle-black: #000000;
+            --oracle-dark-gray: #333333;
+            --oracle-medium-gray: #666666;
+            --oracle-border: #D0D0D0;
+        }
+
+        :root[data-bs-theme="light"] {
+            --bg-custom: #FFFFFF;
+            --text-custom: #222222; /* Darker text for better contrast */
+            --nav-bg: var(--oracle-dark-blue);
+            --nav-text: #FFFFFF;
+            --header-bg: linear-gradient(to bottom, #0F3B70, #1A4E8C); /* Darker gradient */
+            --card-bg: #FFFFFF;
+            --table-header-bg: #EEF3F9; /* Lighter background for better contrast with text */
+            --border-color: #D0D0D0;
+            --accent-color: var(--oracle-red);
+        }
+
+        :root[data-bs-theme="dark"] {
+            --bg-custom: #12171D;
+            --text-custom: #F4F4F4;
+            --nav-bg: #0A101B;
+            --nav-text: #FFFFFF;
+            --header-bg: linear-gradient(to bottom, #0A1929, #112C4A);
+            --card-bg: #1C2834;
+            --table-header-bg: #0D1E34;
+            --border-color: #2A3A4A;
+            --accent-color: #F05A28;
+        }
+
+        body {
+            font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+            color: var(--text-custom);
+            background-color: var(--bg-custom);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Oracle-style header */
+        .top-navbar {
+            background: var(--header-bg);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Increased shadow */
+        }
+
+        .navbar-brand {
+            color: white;
+            font-weight: 700; /* Increased from 600 */
+            font-size: 1.25rem;
+            padding-left: 3.5rem;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* Added for better readability */
+        }
+
+        .navbar-brand::before {
+            content: '';
+            background-image: url('https://www.oracle.com/a/ocom/img/rh03-o-logo.svg');
+            background-size: contain;
+            background-repeat: no-repeat;
+            width: 32px;
+            height: 32px;
+            display: inline-block;
+            margin-right: 12px;
+        }
+
+        /* Oracle-style sidebar */
+        .sidebar {
+            min-height: 100vh;
+            background-color: var(--nav-bg);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Increased shadow */
+            padding-top: 1.5rem;
+            transition: width 0.3s ease;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 100;
+            width: 260px;
+            overflow-x: hidden;
+            margin-top: 64px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-collapsed {
+            width: 64px;
+        }
+
+        .sidebar-collapsed .nav-link span {
+            display: none;
+        }
+
+        /* Oracle-style content area */
+        .content {
+            padding: 2rem;
+            transition: margin-left 0.3s ease;
+            margin-left: 260px;
+            margin-top: 64px;
+            background-color: #F0F2F5; /* Slightly darker for better contrast */
+            min-height: calc(100vh - 64px);
+            flex-grow: 1;
+        }
+
+        [data-bs-theme="dark"] .content {
+            background-color: #151D29;
+        }
+
+        .content-expanded {
+            margin-left: 64px;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            border-radius: 4px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            color: white;
+            border: none;
+            box-shadow: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .sidebar-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Oracle-style navigation links */
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.9); /* Increased opacity for better contrast */
+            padding: 0.875rem 1.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            height: 3.5rem;
+            position: relative;
+            font-weight: 500; /* Increased from 400 */
+            letter-spacing: 0.3px;
+        }
+
+        .sidebar-collapsed .nav-link {
+            padding: 0.875rem 0;
+            justify-content: center;
+            align-items: center;
+            height: 3.5rem;
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 12px;
+            font-size: 1.1rem;
+            min-width: 24px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.9); /* Increased opacity */
+        }
+
+        .sidebar-collapsed .nav-link i {
+            margin-right: 0;
+            font-size: 1.1rem;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.12); /* Slightly more visible */
+        }
+
+        .sidebar .nav-link.active {
+            color: #fff;
+            font-weight: 600;
+            background-color: rgba(22, 79, 143, 0.8); /* Increased opacity */
+            border-left: 4px solid var(--accent-color);
+            padding-left: calc(1.5rem - 4px);
+        }
+
+        .sidebar-collapsed .nav-link.active {
+            border-left: none;
+            border-right: 4px solid var(--accent-color);
+            padding-right: 4px;
+        }
+
+        /* Oracle-style user menu */
+        .user-info {
+            color: var(--nav-text);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info .btn {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15); /* Increased opacity */
+            border: 1px solid rgba(255, 255, 255, 0.25); /* Increased opacity */
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+        }
+
+        .user-info .btn:hover {
+            background-color: rgba(255, 255, 255, 0.25); /* Increased opacity */
+        }
+
+        .theme-toggle {
+            padding: 0.5rem;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background-color: rgba(255, 255, 255, 0.15); /* Increased opacity */
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.25); /* Increased opacity */
+        }
+
+        .theme-toggle i {
+            transition: transform 0.5s ease;
+            font-size: 1.1rem;
+        }
+
+        [data-bs-theme="dark"] .theme-toggle .fa-sun {
+            display: inline-block;
+        }
+
+        [data-bs-theme="dark"] .theme-toggle .fa-moon {
+            display: none;
+        }
+
+        [data-bs-theme="light"] .theme-toggle .fa-sun {
+            display: none;
+        }
+
+        [data-bs-theme="light"] .theme-toggle .fa-moon {
+            display: inline-block;
+        }
+
+        .sidebar .nav-link span {
+            margin-left: 8px;
+        }
+        
+        /* Oracle-style submenu */
+        #utilizationSubmenu {
+            margin-top: 5px;
+            background-color: rgba(0, 0, 0, 0.2); /* Darker for better contrast */
+            border-radius: 0;
+            padding: 0.5rem 0;
+        }
+        
+        #utilizationSubmenu .nav-link {
+            padding: 0.5rem 1.5rem 0.5rem 3.5rem;
+            margin-bottom: 0.25rem;
+            height: 2.75rem;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.85); /* Increased opacity */
+        }
+        
+        #utilizationSubmenu .nav-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.08); /* Slightly more visible */
+        }
+        
+        #utilizationSubmenu .nav-link.active {
+            background-color: rgba(22, 79, 143, 0.6); /* Adjusted opacity */
+            border-left: 3px solid var(--accent-color);
+            padding-left: calc(3.5rem - 3px);
+            color: white;
+        }
+
+        #utilizationSubmenu .nav-link i {
+            font-size: 0.875rem;
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .sidebar .dropdown-toggle::after {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            margin-left: 0.5em;
+            vertical-align: 0.255em;
+            content: "";
+            border-top: 0.3em solid;
+            border-right: 0.3em solid transparent;
+            border-bottom: 0;
+            border-left: 0.3em solid transparent;
+            position: absolute;
+            right: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* Oracle-style collapsed submenu */
+        .sidebar-collapsed #utilizationSubmenu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            width: 220px;
+            background-color: var(--nav-bg);
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3); /* Increased shadow */
+            border-radius: 0 4px 4px 0;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .sidebar-collapsed .dropdown-toggle::after {
+            display: none;
+        }
+        
+        /* Oracle-style Card */
+        .card {
+            border-radius: 4px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15); /* Increased shadow */
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(to right, var(--oracle-dark-blue), var(--oracle-light-blue)); /* Updated gradient */
+            color: white;
+            font-weight: 700; /* Increased from 600 */
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* Added for better readability */
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        /* Oracle-style form elements */
+        .form-control, .form-select {
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            background-color: var(--bg-custom);
+            color: var(--text-custom);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--oracle-medium-blue);
+            box-shadow: 0 0 0 3px rgba(26, 78, 140, 0.2); /* Darker for better visibility */
+        }
+        
+        /* Oracle-style buttons */
+        .btn-primary {
+            background-color: var(--oracle-dark-blue);
+            border-color: var(--oracle-dark-blue);
+            color: white;
+            font-weight: 600;
+            padding: 0.625rem 1.25rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Added for better contrast */
+        }
+        
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: var(--oracle-medium-blue);
+            border-color: var(--oracle-medium-blue);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Increased shadow */
+        }
+        
+        .btn-secondary {
+            background-color: var(--card-bg); /* Use theme variable */
+            border-color: var(--oracle-border);
+            color: var(--text-custom);
+            font-weight: 600;
+            padding: 0.625rem 1.25rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover, .btn-secondary:focus {
+            background-color: var(--oracle-light-blue);
+            border-color: var(--oracle-light-blue);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Increased shadow */
+        }
+        
+        .btn-danger {
+            background-color: var(--oracle-red);
+            border-color: var(--oracle-red);
+            color: white;
+            font-weight: 600;
+            padding: 0.625rem 1.25rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Added for better contrast */
+        }
+        
+        .btn-danger:hover, .btn-danger:focus {
+            background-color: #B13A2C;
+            border-color: #B13A2C;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Increased shadow */
+        }
+        
+        /* Oracle-style table - improved contrast */
+        .table {
+            width: 100%;
+            margin-bottom: 0;
+            color: var(--text-custom);
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .table th {
+            background-color: var(--oracle-dark-blue) !important; /* Darker blue */
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border-color: rgba(255, 255, 255, 0.1);
+            font-size: 0.875rem;
+            color: #ffffff;
+            border-top: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* Increased shadow */
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3); /* Added for better contrast */
+        }
+        
+        .table td {
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+            border-color: var(--border-color);
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+        
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.03); /* Slightly darker */
+        }
+        
+        .table-striped tbody tr:nth-of-type(even) {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        
+        [data-bs-theme="dark"] .table {
+            color: #e2e8f0;
+        }
+        
+        [data-bs-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        
+        [data-bs-theme="dark"] .table-striped tbody tr:nth-of-type(even) {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(26, 78, 140, 0.08); /* Increased opacity */
+        }
+        
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: rgba(66, 139, 202, 0.15);
+        }
+        
+        /* Table container styles */
+        .table-responsive {
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--oracle-medium-blue) transparent;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Increased shadow */
+            margin-bottom: 1.5rem;
+        }
+        
+        .table-responsive::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        
+        .table-responsive::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .table-responsive::-webkit-scrollbar-thumb {
+            background-color: var(--oracle-medium-blue);
+            border-radius: 4px;
+        }
+        
+        /* Column-specific styles */
+        .table th:first-child,
+        .table td:first-child {
+            padding-left: 1.5rem;
+        }
+        
+        .table th:last-child,
+        .table td:last-child {
+            padding-right: 1.5rem;
+        }
+        
+        /* Numeric columns */
+        .table .text-end {
+            text-align: right;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        /* Resource email column */
+        .table .resource-email {
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Add visual separator between header and body */
+        .table thead:after {
+            content: '';
+            display: block;
+            height: 1px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Oracle-style alerts */
+        .alert {
+            border-radius: 4px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid transparent;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background-color: #E3F2E3; /* Slightly darker for better contrast */
+            border-color: #C8E6C9;
+            color: #2E7D32;
+        }
+        
+        .alert-danger {
+            background-color: #FDECEA;
+            border-color: #FFCDD2;
+            color: #C62828;
+        }
+        
+        .alert-warning {
+            background-color: #FFF8E1;
+            border-color: #FFECB3;
+            color: #F57F17;
+        }
+        
+        .alert-info {
+            background-color: #E1F5FE;
+            border-color: #B3E5FC;
+            color: #0277BD;
+        }
+        
+        /* Oracle-style footer */
+        .footer {
+            background-color: var(--nav-bg);
+            color: rgba(255, 255, 255, 0.85); /* Increased opacity */
+            padding: 1.5rem;
+            font-size: 0.875rem;
+            text-align: center;
+            margin-top: auto;
+        }
+        
+        .footer a {
+            color: rgba(255, 255, 255, 0.95); /* Increased opacity */
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        /* Oracle-style page titles */
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--oracle-dark-blue);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 0.75rem;
+        }
+        
+        .page-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background-color: var(--oracle-red);
+            border-radius: 3px;
+        }
+        
+        [data-bs-theme="dark"] .page-title {
+            color: #FFFFFF;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Oracle-style Top Navbar -->
+    <nav class="top-navbar">
+        <div class="navbar-brand">Resource Allocation</div>
+        <div class="user-info">
+            <button class="btn theme-toggle me-3" onclick="toggleTheme()">
+                <i class="fas fa-sun"></i>
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="d-flex align-items-center">
+                <a href="#" class="btn">
+                    <i class="fas fa-user-circle me-2"></i>
+                    Admin
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar toggle button -->
+    <button id="sidebarToggle" class="sidebar-toggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Oracle-style Sidebar -->
+    <nav id="sidebar" class="sidebar">
+        <div class="position-sticky">
+            <ul class="nav flex-column mt-2">
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-tasks"></i>
+                        <span>Allocation</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="collapse" data-bs-target="#utilizationSubmenu" aria-expanded="false" aria-controls="utilizationSubmenu">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Utilization</span>
+                    </a>
+                    <div class="collapse" id="utilizationSubmenu">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a href="{% url 'view_reports' %}" class="nav-link">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>View Reports</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'extract_data' %}" class="nav-link">
+                                    <i class="fas fa-calendar-week"></i>
+                                    <span>Weekly Reports</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'util_leakage' %}" class="nav-link">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Util Leakage</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'util_summary' %}" class="nav-link">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>Util Summary</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Content Main Container -->
+    <main class="content" id="content">
+        {% if messages %}
+        <div class="container-fluid mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Oracle-style Footer -->
+    <footer class="footer">
+        <div class="container">
+            <span>© 2023 Oracle Inspired Resource Allocation. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    
+    <script>
+    // Theme toggling functionality
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        html.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    }
+
+    // Sidebar toggling functionality
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const content = document.getElementById('content');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        
+        sidebar.classList.toggle('sidebar-collapsed');
+        content.classList.toggle('content-expanded');
+        
+        // Save the state to localStorage
+        const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', isSidebarCollapsed);
+    }
+
+    // Set initial state on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        
+        // Set sidebar state based on localStorage
+        const sidebar = document.getElementById('sidebar');
+        const content = document.getElementById('content');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        const isSidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        
+        if (isSidebarCollapsed) {
+            sidebar.classList.add('sidebar-collapsed');
+            content.classList.add('content-expanded');
+        } else {
+            sidebar.classList.remove('sidebar-collapsed');
+            content.classList.remove('content-expanded');
+        }
+        
+        // Add click event to toggle button
+        toggleBtn.addEventListener('click', toggleSidebar);
+        
+        // Handle submenu in collapsed mode
+        const utilizationToggle = document.querySelector('.nav-link.dropdown-toggle');
+        const utilizationSubmenu = document.getElementById('utilizationSubmenu');
+        
+        utilizationToggle.addEventListener('mouseenter', function() {
+            if (sidebar.classList.contains('sidebar-collapsed')) {
+                utilizationSubmenu.classList.add('show');
+                
+                // Position the submenu correctly
+                const toggleRect = utilizationToggle.getBoundingClientRect();
+                utilizationSubmenu.style.top = toggleRect.top + 'px';
+            }
+        });
+        
+        utilizationToggle.parentElement.addEventListener('mouseleave', function() {
+            if (sidebar.classList.contains('sidebar-collapsed')) {
+                utilizationSubmenu.classList.remove('show');
+            }
+        });
+        
+        // Handle active nav item
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && href !== '#' && currentPath.includes(href)) {
+                link.classList.add('active');
+                
+                // If it's a submenu item, expand the parent
+                const parentSubmenu = link.closest('.collapse');
+                if (parentSubmenu) {
+                    parentSubmenu.classList.add('show');
+                    const parentToggle = document.querySelector(`[data-bs-target="#${parentSubmenu.id}"]`);
+                    if (parentToggle) {
+                        parentToggle.setAttribute('aria-expanded', 'true');
+                    }
+                }
+            }
+        });
+    });
+    </script>
+    {% block extra_js %}{% endblock %}
+
+    <!-- Theme toggle script - Add at the end of body -->
+    <script>
+        // Theme toggle functionality
+        const toggleTheme = () => {
+            const theme = document.documentElement.getAttribute('data-bs-theme');
+            const newTheme = theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        };
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!localStorage.getItem('theme')) {
+                document.documentElement.setAttribute('data-bs-theme', e.matches ? 'dark' : 'light');
+            }
+        });
+
+        // Add theme toggle button event listener if it exists
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+        });
+    </script>
+</body>
+</html>

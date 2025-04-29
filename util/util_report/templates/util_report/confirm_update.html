@@ -1,0 +1,61 @@
+{% extends 'util_report/base.html' %}
+
+{% block title %}Confirm Update - Utilization Report{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <h3>Duplicate Report Found</h3>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        A report for <strong>{{ report_date }}</strong> already exists in the database.
+      </div>
+      
+      <p>What would you like to do?</p>
+      
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+              View Existing Report
+            </div>
+            <div class="card-body">
+              <p>View the existing report data that was previously uploaded.</p>
+              <a href="{% url 'view_reports' %}?date={{ report_date }}" class="btn btn-info btn-block">
+                <i class="fas fa-eye"></i> View Existing Report
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header bg-warning">
+              Update with New Data
+            </div>
+            <div class="card-body">
+              <p>Replace the existing data with the information from the current file.</p>
+              <form method="post" action="{% url 'extract_data' %}">
+                {% csrf_token %}
+                <input type="hidden" name="confirm_update" value="true">
+                <button type="submit" class="btn btn-warning btn-block">
+                  <i class="fas fa-sync-alt"></i> Update with New Data
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-3">
+        <a href="{% url 'upload' %}" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Upload
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

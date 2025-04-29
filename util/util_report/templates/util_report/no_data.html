@@ -1,0 +1,47 @@
+{% extends "util_report/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-warning text-dark">
+            <h4>No Data Available</h4>
+        </div>
+        <div class="card-body">
+            <p class="lead">No utilization reports found for {{ date }}.</p>
+            <p>Please upload data for this date or select another date for which data is available.</p>
+            
+            <div class="mt-4">
+                <a href="{% url 'upload' %}" class="btn btn-primary">Upload Reports</a>
+            </div>
+            
+            {% if debug_info %}
+            <div class="mt-5">
+                <h5>Debug Information</h5>
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>DB Table Name:</strong> {{ debug_info.db_table }}</p>
+                        <p><strong>Total Records in Database:</strong> {{ debug_info.total_records }}</p>
+                        
+                        <p><strong>All Available Dates:</strong></p>
+                        <ul>
+                            {% for date in debug_info.all_dates %}
+                            <li><a href="?date={{ date|date:'Y-m-d' }}">{{ date }}</a></li>
+                            {% empty %}
+                            <li>No dates found</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <p><strong>Available Model Fields:</strong></p>
+                        <ul>
+                            {% for field in debug_info.available_fields %}
+                            <li>{{ field }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

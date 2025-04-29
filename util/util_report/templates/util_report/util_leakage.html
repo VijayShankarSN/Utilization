@@ -1,0 +1,2461 @@
+{% extends 'util_report/base.html' %}
+
+{% block title %}Util Leakage Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .container {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-title {
+        color: #1A365D;  /* Darker blue */
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        position: relative;
+        display: inline-block;
+    }
+
+    .page-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 60px;
+        height: 3px;
+        background-color: var(--oracle-red);
+        border-radius: 2px;
+    }
+
+    .page-subtitle {
+        color: var(--text-custom);
+        font-size: 1rem;
+        font-weight: 400;
+        margin-bottom: 2rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Oracle-inspired date selector styles */
+    .date-selector {
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-color);
+    }
+
+    .form-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 1.5rem;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .form-group {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .form-label {
+        display: block;
+        color: var(--oracle-dark-blue);
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-select, .filter-select {
+        background-color: var(--bg-custom);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        color: var(--text-custom);
+        font-size: 1rem;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232d3748' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        height: 43px;
+    }
+
+    .form-select:hover, .filter-select:hover {
+        border-color: #2C5282;
+    }
+
+    .form-select:focus, .filter-select:focus {
+        outline: none;
+        border-color: #1A365D;
+        box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.15);
+    }
+
+    .filter-section {
+        width: 100%;
+    }
+
+    .download-btn {
+        background-color: #1A365D;  /* Darker blue for button */
+        color: white !important;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        white-space: nowrap;
+        height: 43px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+        min-width: 160px;
+    }
+
+    .download-btn:hover {
+        background-color: #2C5282;  /* Richer blue for button hover */
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        color: white !important;
+        text-decoration: none;
+    }
+
+    .download-btn i {
+        font-size: 1.2rem;
+    }
+
+    /* Oracle-inspired summary cards */
+    .summary-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 1.5rem;
+        flex: 1;
+        min-width: 200px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background-color: #1A365D;  /* Darker blue for card accent */
+    }
+
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .summary-value {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #1A365D;  /* Darker blue for summary values */
+    }
+
+    .summary-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-custom);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .result-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-color);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: none;
+    }
+
+    .table-responsive {
+        background-color: var(--bg-custom);
+        border-radius: 8px;
+        padding: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--oracle-medium-blue) transparent;
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        height: 540px;
+        max-height: 540px;
+        width: 100%;
+        border: 1px solid var(--border-color);
+    }
+
+    .table-responsive::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background-color: #2C5282;  /* Richer blue for scrollbar */
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-corner {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .table {
+        margin: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table thead {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .table th {
+        background-color: #1A365D !important;  /* Darker blue for header */
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.75rem 0.6rem;
+        border-color: rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+    }
+
+    .table td {
+        padding: 0.75rem 0.6rem;
+        border-color: var(--border-color);
+        vertical-align: middle;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+
+    /* Column-specific styles */
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+        text-align: center;
+        width: 50px;
+        min-width: 50px;
+    }
+
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+        text-align: left;
+        min-width: 200px;
+        padding-left: 1rem;
+    }
+
+    /* Rest of column styles remain unchanged */
+    /* Numeric columns - Administrative to Grand Total */
+    .table th:nth-child(3),
+    .table td:nth-child(3),
+    .table th:nth-child(4),
+    .table td:nth-child(4),
+    .table th:nth-child(5),
+    .table td:nth-child(5),
+    .table th:nth-child(6),
+    .table td:nth-child(6),
+    .table th:nth-child(7),
+    .table td:nth-child(7),
+    .table th:nth-child(8),
+    .table td:nth-child(8),
+    .table th:nth-child(9),
+    .table td:nth-child(9),
+    .table th:nth-child(10),
+    .table td:nth-child(10),
+    .table th:nth-child(11),
+    .table td:nth-child(11),
+    .table th:nth-child(12),
+    .table td:nth-child(12) {
+        text-align: right;
+        min-width: 100px;
+        padding-right: 1rem;
+        font-family: 'Monaco', 'Consolas', monospace;
+    }
+
+    /* Action bar styles */
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        background-color: var(--bg-custom);
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+    }
+
+    .mass-action {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .close-selected-btn {
+        background-color: var(--oracle-red);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 0.6rem 1.25rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        opacity: 0.7;
+        height: 38px;
+    }
+
+    .close-selected-btn.active {
+        opacity: 1;
+        background-color: #C53030;
+    }
+
+    .close-selected-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        background-color: #C53030;
+    }
+
+    .select-all-checkbox {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+        accent-color: #1A365D;  /* Darker blue for checkboxes */
+    }
+
+    .case-checkbox {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+        accent-color: #1A365D;  /* Darker blue for checkboxes */
+    }
+
+    /* Dark mode adjustments */
+    [data-bs-theme="dark"] .date-selector,
+    [data-bs-theme="dark"] .result-card,
+    [data-bs-theme="dark"] .summary-card {
+        background-color: var(--card-bg);
+        border-color: var(--border-color);
+    }
+
+    [data-bs-theme="dark"] .summary-value {
+        color: #2C5282;  /* Richer blue for dark mode */
+    }
+
+    [data-bs-theme="dark"] .summary-label {
+        color: #A0AEC0;
+    }
+
+    [data-bs-theme="dark"] .form-label {
+        color: #E2E8F0;
+    }
+
+    [data-bs-theme="dark"] .date-selector select,
+    [data-bs-theme="dark"] .filter-section select,
+    [data-bs-theme="dark"] .form-select,
+    [data-bs-theme="dark"] .filter-select {
+        background-color: rgba(15, 23, 42, 0.5);
+        border-color: var(--border-color);
+        color: #E2E8F0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    }
+
+    [data-bs-theme="dark"] .date-selector select:hover,
+    [data-bs-theme="dark"] .filter-section select:hover,
+    [data-bs-theme="dark"] .form-select:hover,
+    [data-bs-theme="dark"] .filter-select:hover {
+        border-color: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .date-selector select:focus,
+    [data-bs-theme="dark"] .filter-section select:focus,
+    [data-bs-theme="dark"] .form-select:focus,
+    [data-bs-theme="dark"] .filter-select:focus {
+        border-color: #1A365D;
+        box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.25);
+    }
+
+    /* Editable cell styles */
+    .editable-hours,
+    .editable-days {
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .editable-hours:hover,
+    .editable-days:hover {
+        background-color: rgba(44, 82, 130, 0.1);
+    }
+
+    .editable-hours.editing,
+    .editable-days.editing {
+        padding: 0 !important;
+    }
+
+    .editable-hours input,
+    .editable-days input {
+        width: 100%;
+        height: 100%;
+        padding: 0.5rem 0.6rem;
+        border: 2px solid var(--oracle-medium-blue);
+        background-color: var(--bg-custom);
+        color: var(--text-custom);
+        font-family: 'Monaco', 'Consolas', monospace;
+        font-size: 0.85rem;
+        text-align: right;
+        outline: none;
+        border-radius: 4px;
+    }
+
+    .editable-hours input:focus,
+    .editable-days input:focus {
+        box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.2);
+    }
+
+    /* Updated cell highlight */
+    .updated-cell {
+        animation: highlightUpdate 1s ease;
+    }
+
+    @keyframes highlightUpdate {
+        0% {
+            background-color: rgba(44, 82, 130, 0.3);
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    .header-section {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .header-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        min-height: 90px;
+        flex: 1;
+    }
+
+    [data-bs-theme="dark"] .header-card {
+        background: var(--card-bg);
+        border-color: var(--border-color);
+    }
+
+    .header-card-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        margin-bottom: 0.75rem;
+        white-space: nowrap;
+    }
+
+    [data-bs-theme="dark"] .header-card-title {
+        color: #E5E7EB;
+    }
+
+    .header-card-content {
+        display: flex;
+        align-items: center;
+        height: 100%;
+    }
+
+    .date-select {
+        background-color: #FFFFFF;
+        border: 1px solid #D1D5DB;
+        border-radius: 6px;
+        padding: 0.5rem 2rem 0.5rem 1rem;
+        font-size: 0.95rem;
+        color: #1F2937;
+        min-width: 200px;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1.25rem;
+    }
+
+    [data-bs-theme="dark"] .date-select {
+        background-color: var(--bg-custom);
+        border-color: var(--border-color);
+        color: #E5E7EB;
+    }
+
+    .utilization-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #1A365D;
+        line-height: 1;
+    }
+
+    [data-bs-theme="dark"] .utilization-value {
+        color: #60A5FA;
+    }
+
+    .utilization-label {
+        font-size: 0.875rem;
+        color: #6B7280;
+        font-weight: 500;
+    }
+
+    [data-bs-theme="dark"] .utilization-label {
+        color: #9CA3AF;
+    }
+
+    .download-button {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        white-space: nowrap;
+        height: 38px;
+    }
+
+    .download-button:hover {
+        background-color: #2C5282;
+        color: white;
+        text-decoration: none;
+    }
+
+    .download-button i {
+        font-size: 1rem;
+    }
+
+    /* Add new styles for the search filter dropdown */
+    .table-header-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .search-filter-btn {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .search-filter-btn:hover {
+        background-color: #2C5282;
+    }
+
+    .search-filter-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        z-index: 10;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        min-width: 320px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: none;
+    }
+
+    .search-filter-dropdown.show {
+        display: block;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .search-filter-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-custom);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .close-dropdown {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        background: none;
+        border: none;
+        color: var(--text-custom);
+        font-size: 1rem;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+
+    .close-dropdown:hover {
+        opacity: 1;
+    }
+
+    .filter-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        gap: 0.75rem;
+    }
+
+    .filter-reset {
+        background: none;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        color: var(--text-custom);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-reset:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-apply {
+        background: #1A365D;
+        border: none;
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-apply:hover {
+        background: #2C5282;
+    }
+
+    /* Dark mode adjustments */
+    [data-bs-theme="dark"] .search-filter-btn {
+        background: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .search-filter-btn:hover {
+        background: #1A365D;
+    }
+
+    [data-bs-theme="dark"] .filter-reset:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-bs-theme="dark"] .filter-apply {
+        background: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .filter-apply:hover {
+        background: #1A365D;
+    }
+
+    .filter-bar {
+        display: flex;
+        gap: 1rem;
+        background-color: #1e2a3a;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .filter-column {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .filter-column-label {
+        color: #cbd5e0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .filter-input {
+        background-color: #2d3748;
+        border: 1px solid #4a5568;
+        border-radius: 0.25rem;
+        color: #e2e8f0;
+        padding: 0.75rem 1rem;
+        width: 100%;
+        transition: all 0.2s;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+
+    .filter-select {
+        background-color: #2d3748;
+        border: 1px solid #4a5568;
+        border-radius: 0.25rem;
+        color: #e2e8f0;
+        padding: 0.75rem 1rem;
+        padding-right: 2.5rem;
+        width: 100%;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        transition: all 0.2s;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+
+    /* Add CSS for the history button and modal */
+    .history-button {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        white-space: nowrap;
+        height: 38px;
+        cursor: pointer;
+    }
+
+    .history-button:hover {
+        background-color: #2C5282;
+        color: white;
+        text-decoration: none;
+    }
+
+    .history-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .history-modal-content {
+        background-color: var(--card-bg);
+        border-radius: 10px;
+        padding: 0;
+        width: 85%;
+        max-width: 1000px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .history-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        background-color: #1A365D;
+        color: white;
+    }
+
+    .history-modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: white;
+        margin: 0;
+    }
+
+    .history-modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.25rem;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+        padding: 0.25rem;
+    }
+
+    .history-modal-close:hover {
+        opacity: 1;
+    }
+
+    .history-filter-section {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+
+    [data-bs-theme="dark"] .history-filter-section {
+        background-color: #1e2a3a;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .history-filter-group {
+        flex: 1;
+        min-width: 180px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .history-filter-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    [data-bs-theme="dark"] .history-filter-label {
+        color: #adb5bd;
+    }
+
+    .history-filter-control {
+        position: relative;
+        width: 100%;
+    }
+
+    .history-select, .history-input {
+        width: 100%;
+        height: 38px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        background-color: white;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        color: #495057;
+        transition: all 0.2s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        appearance: none;
+        box-sizing: border-box;
+    }
+
+    .history-select {
+        padding-right: 2.5rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23495057' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1rem;
+    }
+
+    .history-input:focus, .history-select:focus {
+        border-color: #4f88ef;
+        box-shadow: 0 0 0 3px rgba(79, 136, 239, 0.15);
+        outline: none;
+    }
+
+    [data-bs-theme="dark"] .history-select, 
+    [data-bs-theme="dark"] .history-input {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+
+    [data-bs-theme="dark"] .history-select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23e2e8f0' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    }
+
+    /* Add a class for the filter buttons container */
+    .history-filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: flex-end;
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .history-filter-button {
+        height: 38px;
+        padding: 0 1rem;
+        font-weight: 600;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        white-space: nowrap;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+    }
+
+    .history-apply-button {
+        background-color: #1A365D;
+        color: white;
+        border: none;
+    }
+
+    .history-apply-button:hover {
+        background-color: #2C5282;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .history-reset-button {
+        background-color: transparent;
+        color: #6c757d;
+        border: 1px solid #ced4da;
+        margin-right: 0;
+    }
+
+    .history-reset-button:hover {
+        background-color: #f8f9fa;
+        color: #495057;
+    }
+
+    [data-bs-theme="dark"] .history-apply-button {
+        background-color: #2C5282;
+    }
+
+    [data-bs-theme="dark"] .history-apply-button:hover {
+        background-color: #1A365D;
+    }
+
+    [data-bs-theme="dark"] .history-reset-button {
+        color: #adb5bd;
+        border-color: #4a5568;
+    }
+
+    [data-bs-theme="dark"] .history-reset-button:hover {
+        background-color: #2d3748;
+        color: #e2e8f0;
+    }
+
+    .history-content {
+        overflow-y: auto;
+        flex: 1;
+        max-height: calc(90vh - 175px);
+    }
+
+    .history-action-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .history-action-closed {
+        background-color: #ff5630;
+        color: white;
+    }
+
+    .history-action-edited {
+        background-color: #36b37e;
+        color: white;
+    }
+
+    .history-action-updated {
+        background-color: #0065ff;
+        color: white;
+    }
+
+    .history-table-container {
+        padding: 0.75rem;
+        overflow-y: auto;
+    }
+
+    .history-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .history-table th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        padding: 0.75rem 0.5rem;
+        font-weight: 600;
+        color: #495057;
+        text-align: left;
+        border-bottom: 2px solid #e9ecef;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+    }
+
+    .history-table td {
+        padding: 0.75rem 0.5rem;
+        border-bottom: 1px solid #e9ecef;
+        color: #495057;
+        font-size: 0.85rem;
+    }
+
+    .history-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .history-table tbody tr {
+        transition: background-color 0.15s;
+    }
+
+    .history-table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-bs-theme="dark"] .history-table th {
+        background-color: #1e2a3a;
+        color: #e2e8f0;
+        border-bottom-color: #4a5568;
+    }
+
+    [data-bs-theme="dark"] .history-table td {
+        border-bottom-color: #4a5568;
+        color: #e2e8f0;
+    }
+
+    [data-bs-theme="dark"] .history-table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .history-empty-state {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: #6c757d;
+    }
+
+    .history-empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .history-empty-state p {
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    [data-bs-theme="dark"] .history-empty-state {
+        color: #adb5bd;
+    }
+
+    @media (max-width: 768px) {
+        .history-filter-section {
+            gap: 0.5rem;
+        }
+        
+        .history-table th, .history-table td {
+            padding: 0.5rem 0.4rem;
+            font-size: 0.8rem;
+        }
+
+        .history-filter-group:last-child {
+            margin-top: 0.5rem;
+        }
+    }
+
+    .history-table td div.text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+
+    /* Adjust column widths for better distribution */
+    .history-table th:nth-child(1), /* Date */
+    .history-table td:nth-child(1) {
+        width: 10%;
+    }
+
+    .history-table th:nth-child(2), /* Resource */
+    .history-table td:nth-child(2) {
+        width: 20%;
+    }
+
+    .history-table th:nth-child(3), /* Action */
+    .history-table td:nth-child(3) {
+        width: 10%;
+    }
+
+    .history-table th:nth-child(4), /* Details */
+    .history-table td:nth-child(4) {
+        width: 30%;
+    }
+
+    .history-table th:nth-child(5), /* Previous Value */
+    .history-table td:nth-child(5),
+    .history-table th:nth-child(6), /* New Value */
+    .history-table td:nth-child(6) {
+        width: 15%;
+    }
+
+    /* Generic cell classes to ensure consistency */
+    .numeric-cell {
+        text-align: right;
+        min-width: 100px;
+        padding-right: 1rem;
+        font-family: 'Monaco', 'Consolas', monospace;
+    }
+
+    .editable-cell {
+        font-weight: 500;
+        position: relative;
+    }
+
+    .editable-cell::after {
+        content: '\f044';
+        font-family: 'Font Awesome 5 Free';
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        transform: translateY(-50%);
+        font-size: 0.7rem;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .editable-cell:hover::after {
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header-section">
+        <div class="header-card">
+            <div class="header-card-title">SELECT REPORT DATE</div>
+            <div class="header-card-content">
+                <form method="GET" action="" id="dateForm">
+                    <select name="date" id="date" class="date-select" style="width: 100%" onchange="document.getElementById('dateForm').submit()">
+                        <option value="">Select a date...</option>
+                        {% for date in dates %}
+                            <option value="{{ date }}" {% if selected_date == date %}selected{% endif %}>{{ date }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+        </div>
+
+        {% if selected_date %}
+        <div class="header-card">
+            <div class="header-card-title">DAMS UTILIZATION</div>
+            <div class="header-card-content">
+                <div class="utilization-value">{{ dams_utilization|floatformat:3 }}%</div>
+            </div>
+        </div>
+
+        <div class="header-card">
+            <div class="header-card-title">CAPABLE UTIL</div>
+            <div class="header-card-content">
+                <div class="utilization-value">{{ capable_utilization|default:0|floatformat:3 }}%</div>
+            </div>
+        </div>
+
+        <div class="header-card" style="margin-left: auto;">
+            <div class="header-card-title">ACTIONS</div>
+            <div class="header-card-content">
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="button" id="historyBtn" class="history-button">
+                        <i class="fas fa-history"></i>
+                        History
+                    </button>
+                    <a href="{% url 'download_util_leakage' %}?date={{ selected_date }}" class="download-button">
+                    <i class="fas fa-download"></i>
+                    Download Excel
+                </a>
+                </div>
+            </div>
+            </div>
+            {% endif %}
+    </div>
+
+    {% if selected_date %}
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <div class="summary-card">
+                <div class="summary-value">{{ current_open_count }}</div>
+                <div class="summary-label">CURRENT OPEN CASES</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ last_week_open_count }}</div>
+                <div class="summary-label">PREVIOUS WEEK OPEN</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ current_handled_count }}</div>
+                <div class="summary-label">HANDLED THIS WEEK</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ last_week_handled_count }}</div>
+                <div class="summary-label">HANDLED LAST WEEK</div>
+            </div>
+        </div>
+
+        <div class="result-card">
+            {% if report_html %}
+                <form id="closeCasesForm" method="POST" action="{% url 'close_cases' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="date" value="{{ selected_date }}">
+                    
+                    <div class="action-bar">
+                        <div class="mass-action">
+                            <input type="checkbox" id="selectAll" class="select-all-checkbox">
+                            <label for="selectAll">Select All</label>
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="filter-dropdown-container" style="position: relative;">
+                                <button type="button" id="searchFilterBtn" class="search-filter-btn">
+                                    <i class="fas fa-search"></i>
+                                    <span>Search & Filter</span>
+                                </button>
+                                <div id="searchFilterDropdown" class="search-filter-dropdown">
+                                    <button type="button" class="close-dropdown" id="closeDropdown">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <div class="search-filter-form">
+                                        <div class="filter-group">
+                                            <label class="filter-label" for="resourceSearch">Resource Email</label>
+                                            <input type="text" id="resourceSearch" class="search-input" placeholder="Search by email...">
+                                        </div>
+                                        <div class="filter-group">
+                                            <label class="filter-label" for="billingFilter">Billing</label>
+                                            <select id="billingFilter" class="filter-select">
+                                                <option value="">All Billing</option>
+                                                <option value="Billing">Billing</option>
+                                                <option value="Partial">Partial</option>
+                                                <option value="Next">Next</option>
+                                                <option value="Released">Released</option>
+                                                <option value="On Bench">On Bench</option>
+                                                <option value="Non Billable">Non Billable</option>
+                                                <option value="TBD">TBD</option>
+                                            </select>
+                                        </div>
+                                        <div class="filter-actions">
+                                            <button type="button" id="resetFilters" class="filter-reset">Reset</button>
+                                            <button type="button" id="applyFilters" class="filter-apply">Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
+                        <button type="button" id="closeSelectedBtn" class="close-selected-btn" disabled>
+                            <i class="fas fa-times-circle"></i> Close Selected Cases
+                        </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <!-- Table content will be inserted here from the modified report_html -->
+                        <div id="tableContainer">{{ report_html|safe }}</div>
+                    </div>
+                </form>
+            {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-info-circle mb-3" style="font-size: 2rem;"></i>
+                    <p>No open cases found for the selected date.</p>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="history-modal">
+    <div class="history-modal-content">
+        <div class="history-modal-header">
+            <h2 class="history-modal-title">Utilization History</h2>
+            <button id="closeHistoryModal" class="history-modal-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="history-filter-section">
+            <div class="history-filter-group">
+                <div class="history-filter-label">Filter by Date</div>
+                <div class="history-filter-control">
+                    <select id="historyDateFilter" class="history-select">
+                        <option value="">All Dates</option>
+                        {% for date in dates %}
+                            <option value="{{ date }}">{{ date }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="history-filter-group">
+                <div class="history-filter-label">Resource Email</div>
+                <div class="history-filter-control">
+                    <input type="text" id="historyResourceFilter" class="history-input" placeholder="Filter by email...">
+                </div>
+            </div>
+            
+            <div class="history-filter-group">
+                <div class="history-filter-label">Action Type</div>
+                <div class="history-filter-control">
+                    <select id="historyActionFilter" class="history-select">
+                        <option value="">All Actions</option>
+                        <option value="closed">Closed</option>
+                        <option value="edited">Edited</option>
+                        <option value="updated">Updated</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="history-filter-buttons">
+                <button id="resetHistoryFilters" class="history-filter-button history-reset-button">
+                    <i class="fas fa-undo-alt mr-1"></i> Reset
+                </button>
+                <button id="applyHistoryFilters" class="history-filter-button history-apply-button">
+                    <i class="fas fa-filter mr-1"></i> Apply Filters
+                </button>
+            </div>
+        </div>
+        
+        <div class="history-content">
+            <div class="history-table-container">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Resource</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                            <th>Previous Value</th>
+                            <th>New Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- History entries will be loaded here via AJAX -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Keeping all the existing JavaScript unchanged to preserve functionality
+    // Add row index for staggered animation
+    document.querySelectorAll('.table tbody tr').forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+    });
+
+    // Function to apply billing filter
+    function applyBillingFilter() {
+        const billingFilter = document.getElementById('billingFilter').value;
+        const table = document.querySelector('.table');
+        if (!table) return;
+
+        const rows = table.querySelectorAll('tbody tr');
+        
+        // Find the billing column index
+        const headers = table.querySelectorAll('thead th');
+        const billingColumnIndex = Array.from(headers).findIndex(header => 
+            header.textContent.trim() === 'Billing'
+        );
+
+        if (billingColumnIndex === -1) return;
+
+        rows.forEach(row => {
+            const cells = row.getElementsByTagName('td');
+            if (cells.length === 0) return;
+            
+            const billingCell = cells[billingColumnIndex];
+            if (!billingCell) return;
+            
+            const billingValue = billingCell.textContent.trim();
+            
+            // Show all rows if no filter is selected, otherwise show only matching rows
+            if (billingFilter === '' || billingValue.toLowerCase() === billingFilter.toLowerCase()) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Add event listener for billing filter
+    document.getElementById('billingFilter')?.addEventListener('change', applyBillingFilter);
+
+    // Apply filter on page load and after table content changes
+    function initializeFilters() {
+        // We now have billingFilter inside the dropdown, so only initialize when necessary
+        const billingFilterDropdown = document.getElementById('billingFilter');
+        if (billingFilterDropdown && !billingFilterDropdown._initialized) {
+            billingFilterDropdown._initialized = true;
+            // Remove the change event listener to prevent conflicts
+            billingFilterDropdown.removeEventListener('change', applyBillingFilter);
+        }
+    }
+
+    // Initialize filters when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeFilters();
+        // Add checkboxes to each row
+        addCheckboxesToRows();
+        initializeEditableCells();
+    });
+
+    // Re-apply filters when table content changes
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.target.id === 'tableContainer') {
+                initializeFilters();
+                addCheckboxesToRows();
+                initializeEditableCells();
+            }
+        });
+    });
+
+    // Start observing the table container for changes
+    const tableContainer = document.getElementById('tableContainer');
+    if (tableContainer) {
+        observer.observe(tableContainer, { childList: true, subtree: true });
+    }
+
+    // Handle editable cells
+    document.querySelectorAll('.editable').forEach(cell => {
+        cell.addEventListener('click', function() {
+            if (!this.classList.contains('editing')) {
+                const currentText = this.textContent.trim();
+                const id = this.closest('tr').dataset.id;
+                const field = this.dataset.field;
+                
+                console.log("Editing cell with ID:", id, "Field:", field);
+                
+                this.classList.add('editing');
+                const textarea = document.createElement('textarea');
+                textarea.value = currentText;
+                textarea.dataset.originalValue = currentText;
+                
+                this.textContent = '';
+                this.appendChild(textarea);
+                textarea.focus();
+                
+                textarea.addEventListener('blur', async function() {
+                    const newValue = this.value.trim();
+                    const originalValue = this.dataset.originalValue;
+                    
+                    if (newValue !== originalValue) {
+                        try {
+                            console.log("Saving comment. ID:", id, "Field:", field, "Value:", newValue);
+                            
+                            const response = await fetch('{% url "update_comments" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: JSON.stringify({
+                                    id: id,
+                                    field: field,
+                                    value: newValue
+                                })
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (!response.ok) {
+                                throw new Error(result.error || 'Network response was not ok');
+                            }
+                            
+                            console.log("Save successful:", result);
+                            cell.textContent = newValue;
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert("Error saving comment: " + error.message);
+                            cell.textContent = originalValue;
+                        }
+                    } else {
+                        cell.textContent = originalValue;
+                    }
+                    
+                    cell.classList.remove('editing');
+                });
+            }
+        });
+    });
+
+    // Function to add checkboxes to each row
+    function addCheckboxesToRows() {
+        const table = document.querySelector('.table');
+        if (!table) return;
+        
+        // Add checkbox header
+        const headerRow = table.querySelector('thead tr');
+        if (headerRow) {
+            const checkboxHeader = document.createElement('th');
+            checkboxHeader.textContent = '';
+            checkboxHeader.style.width = '50px';
+            headerRow.insertBefore(checkboxHeader, headerRow.firstChild);
+            
+            // Add action column header
+            const actionHeader = document.createElement('th');
+            actionHeader.textContent = 'Action';
+            actionHeader.style.width = '150px';
+            headerRow.appendChild(actionHeader);
+            
+            // Add classes to header cells
+            Array.from(headerRow.cells).forEach(cell => {
+                const cellText = cell.textContent.trim();
+                
+                // Add numeric-cell class to numeric headers
+                if (['Administrative', 'Billable Hours', 'Training', 'Unassigned', 
+                    'Vacation', 'Grand Total', 'Additional Days', 'WTD Actuals'].includes(cellText)) {
+                    cell.classList.add('numeric-cell');
+                }
+                
+                // Add editable-cell class to editable headers
+                if (['Billable Hours', 'Additional Days'].includes(cellText)) {
+                    cell.classList.add('editable-cell');
+                }
+            });
+        }
+        
+        // Add checkbox to each row
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            // Add checkbox cell
+            const checkboxCell = document.createElement('td');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'case-checkbox';
+            checkbox.name = 'case_ids';
+            checkbox.value = row.dataset.id;
+            checkbox.addEventListener('change', updateCloseButtonState);
+            checkboxCell.appendChild(checkbox);
+            row.insertBefore(checkboxCell, row.firstChild);
+            
+            // Add numeric-cell and editable-cell classes to each cell
+            Array.from(row.cells).forEach((cell, index) => {
+                const headerCell = table.querySelector('thead tr').cells[index];
+                if (headerCell && headerCell.classList.contains('numeric-cell')) {
+                    cell.classList.add('numeric-cell');
+                }
+                if (headerCell && headerCell.classList.contains('editable-cell')) {
+                    cell.classList.add('editable-cell');
+                }
+            });
+            
+            // Add action cell
+            const actionCell = document.createElement('td');
+            actionCell.className = 'closing-reason-column';
+            
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'text';
+            reasonInput.className = 'reason-input';
+            reasonInput.placeholder = 'Closing reason';
+            reasonInput.dataset.id = row.dataset.id;
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'close-case-btn';
+            closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            closeBtn.dataset.id = row.dataset.id;
+            closeBtn.addEventListener('click', function() {
+                closeSingleCase(this.dataset.id, reasonInput.value);
+            });
+            
+            actionCell.appendChild(reasonInput);
+            actionCell.appendChild(closeBtn);
+            row.appendChild(actionCell);
+        });
+    }
+
+    // Function to update Close Selected button state
+    function updateCloseButtonState() {
+        const checkboxes = document.querySelectorAll('.case-checkbox:checked');
+        const closeBtn = document.getElementById('closeSelectedBtn');
+        if (checkboxes.length > 0) {
+            closeBtn.removeAttribute('disabled');
+            closeBtn.classList.add('active');
+        } else {
+            closeBtn.setAttribute('disabled', 'disabled');
+            closeBtn.classList.remove('active');
+        }
+    }
+
+    // Function to close a single case
+    async function closeSingleCase(id, reason) {
+        if (!id) return;
+        
+        try {
+            const response = await fetch('{% url "close_cases" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    case_ids: [id],
+                    reason: reason,
+                    date: '{{ selected_date }}'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to close case');
+            }
+            
+            // Reload the page to reflect changes
+            window.location.reload();
+        } catch (error) {
+            console.error('Error closing case:', error);
+            alert('Error closing case: ' + error.message);
+        }
+    }
+
+    // Handle select all checkbox
+    document.getElementById('selectAll')?.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.case-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateCloseButtonState();
+    });
+
+    // Handle close selected button
+    document.getElementById('closeSelectedBtn')?.addEventListener('click', function() {
+        const checkboxes = document.querySelectorAll('.case-checkbox:checked');
+        if (checkboxes.length === 0) return;
+        
+        const reason = prompt('Enter reason for closing these cases:');
+        if (reason === null) return;  // User cancelled
+        
+        const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+        closeMultipleCases(selectedIds, reason);
+    });
+
+    // Function to close multiple cases
+    async function closeMultipleCases(ids, reason) {
+        if (!ids || ids.length === 0) return;
+        
+        try {
+            const response = await fetch('{% url "close_cases" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    case_ids: ids,
+                    reason: reason,
+                    date: '{{ selected_date }}'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to close cases');
+            }
+            
+            // Reload the page to reflect changes
+            window.location.reload();
+        } catch (error) {
+            console.error('Error closing cases:', error);
+            alert('Error closing cases: ' + error.message);
+        }
+    }
+
+    // Function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Function to make billable hours cells editable
+    function initializeEditableCells() {
+        const table = document.querySelector('.table');
+        if (!table) return;
+
+        // Find the billable hours column index
+        const headers = table.querySelectorAll('thead th');
+        const headerTexts = Array.from(headers).map(header => header.textContent.trim());
+        const billableHoursIndex = headerTexts.findIndex(text => text === 'Billable Hours');
+        const additionalDaysIndex = headerTexts.findIndex(text => text === 'Additional Days');
+
+        if (billableHoursIndex === -1) return;
+
+        // Store header texts in a data attribute on the table for later use
+        table.dataset.headerTexts = JSON.stringify(headerTexts);
+
+        // Make billable hours cells editable
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            // Make billable hours editable
+            if (billableHoursIndex !== -1) {
+                const billableCell = row.cells[billableHoursIndex];
+                if (billableCell) {
+                    billableCell.classList.add('editable-hours');
+                    const originalValue = billableCell.textContent.trim();
+                    billableCell.dataset.originalValue = originalValue;
+
+                    billableCell.addEventListener('click', function() {
+                        if (!this.classList.contains('editing')) {
+                            const input = document.createElement('input');
+                            input.type = 'number';
+                            input.step = '0.1';
+                            input.min = '0';
+                            input.value = this.dataset.originalValue;
+                            input.dataset.originalValue = this.dataset.originalValue;
+
+                            this.textContent = '';
+                            this.classList.add('editing');
+                            this.appendChild(input);
+                            input.focus();
+
+                            input.addEventListener('blur', handleBillableHoursUpdate);
+                            input.addEventListener('keydown', function(e) {
+                                if (e.key === 'Enter') {
+                                    this.blur();
+                                } else if (e.key === 'Escape') {
+                                    const cell = this.parentElement;
+                                    cell.textContent = cell.dataset.originalValue;
+                                    cell.classList.remove('editing');
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            
+            // Make additional days editable
+            if (additionalDaysIndex !== -1) {
+                const additionalDaysCell = row.cells[additionalDaysIndex];
+                if (additionalDaysCell) {
+                    additionalDaysCell.classList.add('editable-days');
+                    const originalValue = additionalDaysCell.textContent.trim();
+                    additionalDaysCell.dataset.originalValue = originalValue;
+                }
+            }
+        });
+    }
+
+    // Function to handle billable hours updates
+    async function handleBillableHoursUpdate(event) {
+        const input = event.target;
+        const cell = input.parentElement;
+        const row = cell.closest('tr');
+        const newValue = parseFloat(input.value);
+        const originalValue = parseFloat(input.dataset.originalValue);
+
+        if (isNaN(newValue) || newValue < 0) {
+            cell.textContent = cell.dataset.originalValue;
+            cell.classList.remove('editing');
+            alert('Please enter a valid number greater than or equal to 0');
+            return;
+        }
+
+        if (newValue !== originalValue) {
+            try {
+                const response = await fetch('{% url "update_billable_hours" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        id: row.dataset.id,
+                        billable_hours: newValue
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update billable hours');
+                }
+
+                // Update the billable hours cell
+                cell.textContent = newValue.toFixed(1);
+                cell.classList.remove('editing');
+                cell.classList.add('updated-cell');
+
+                // Get header texts from table data attribute
+                const headerTexts = JSON.parse(cell.closest('table').dataset.headerTexts);
+
+                // Update related cells
+                const cells = row.cells;
+                for (let i = 0; i < cells.length; i++) {
+                    const header = headerTexts[i];
+                    if (header === 'Grand Total') {
+                        cells[i].textContent = result.grand_total.toFixed(1);
+                        cells[i].classList.add('updated-cell');
+                    } else if (header === 'Additional Days') {
+                        cells[i].textContent = result.addtnl_days.toFixed(1);
+                        cells[i].classList.add('updated-cell');
+                    } else if (header === 'Status') {
+                        cells[i].textContent = result.status;
+                        cells[i].classList.add('updated-cell');
+                    }
+                }
+
+                // If status changed, update summary cards
+                if (result.status_changed) {
+                    // Update current open cases count
+                    const currentOpenCard = document.querySelector('.summary-card:nth-child(1) .summary-value');
+                    if (currentOpenCard) {
+                        currentOpenCard.textContent = result.current_open_count;
+                        currentOpenCard.classList.add('updated-cell');
+                    }
+
+                    // Update handled this week count
+                    const handledThisWeekCard = document.querySelector('.summary-card:nth-child(3) .summary-value');
+                    if (handledThisWeekCard) {
+                        handledThisWeekCard.textContent = result.current_handled_count;
+                        handledThisWeekCard.classList.add('updated-cell');
+                    }
+
+                    // If status changed to 'close', remove the row from the table
+                    if (result.status === 'close') {
+                        setTimeout(() => {
+                            row.style.opacity = '0';
+                            setTimeout(() => {
+                                row.remove();
+                            }, 300);
+                        }, 700);
+                    }
+                }
+
+                // Remove highlight after animation
+                setTimeout(() => {
+                    const updatedCells = document.querySelectorAll('.updated-cell');
+                    updatedCells.forEach(cell => cell.classList.remove('updated-cell'));
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating billable hours: ' + error.message);
+                cell.textContent = cell.dataset.originalValue;
+            }
+        } else {
+            cell.textContent = cell.dataset.originalValue;
+        }
+        
+        cell.classList.remove('editing');
+    }
+
+    // Enable editing for billable hours column
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add click handler for billable hours
+        const table = document.querySelector('table');
+        if (table) {
+            // Store header texts for reference
+            const headerTexts = [];
+            const headers = table.querySelectorAll('thead th');
+            headers.forEach(header => {
+                headerTexts.push(header.textContent.trim());
+            });
+            
+            // Store header texts in a data attribute on the table
+            table.dataset.headerTexts = JSON.stringify(headerTexts);
+            
+            table.addEventListener('click', function(e) {
+                const cell = e.target.closest('td');
+                if (!cell) return;
+                
+                const cellIndex = Array.from(cell.parentNode.children).indexOf(cell);
+                const headerText = headerTexts[cellIndex];
+                
+                if (headerText === 'Billable Hours') {
+                    makeEditable(cell, editBillableHours);
+                } else if (headerText === 'Additional Days') {
+                    makeEditable(cell, editAdditionalDays);
+                }
+            });
+        }
+    });
+
+    // Make a cell editable
+    function makeEditable(cell, saveFunction) {
+        if (cell.classList.contains('editing')) return;
+        
+        const originalValue = parseFloat(cell.textContent);
+        cell.dataset.originalValue = originalValue;
+        
+        // Create input element
+        cell.classList.add('editing');
+        cell.innerHTML = '';
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = '0.1';
+        input.min = '0';
+        input.value = originalValue;
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+        
+        // Handle enter key
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                saveFunction(cell, parseFloat(input.value));
+            } else if (e.key === 'Escape') {
+                cell.textContent = originalValue;
+                cell.classList.remove('editing');
+            }
+        });
+        
+        // Handle focus out
+        input.addEventListener('blur', function() {
+            if (cell.classList.contains('editing')) {
+                saveFunction(cell, parseFloat(input.value));
+            }
+        });
+    }
+
+    // Edit billable hours function
+    async function editBillableHours(cell, newValue) {
+        const row = cell.closest('tr');
+        const originalValue = parseFloat(cell.dataset.originalValue);
+        
+        // Validate input
+        if (isNaN(newValue) || newValue < 0) {
+            alert('Please enter a valid number greater than or equal to 0');
+            return;
+        }
+
+        if (newValue !== originalValue) {
+            try {
+                const response = await fetch('{% url "update_billable_hours" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        id: row.dataset.id,
+                        billable_hours: newValue
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update billable hours');
+                }
+
+                // Update the billable hours cell
+                cell.textContent = newValue.toFixed(1);
+                cell.classList.remove('editing');
+                cell.classList.add('updated-cell');
+
+                // Get header texts from table data attribute
+                const headerTexts = JSON.parse(cell.closest('table').dataset.headerTexts);
+
+                // Update related cells
+                const cells = row.cells;
+                for (let i = 0; i < cells.length; i++) {
+                    const header = headerTexts[i];
+                    if (header === 'Grand Total') {
+                        cells[i].textContent = result.grand_total.toFixed(1);
+                        cells[i].classList.add('updated-cell');
+                    } else if (header === 'Additional Days') {
+                        cells[i].textContent = result.addtnl_days.toFixed(1);
+                        cells[i].classList.add('updated-cell');
+                    } else if (header === 'Status') {
+                        cells[i].textContent = result.status;
+                        cells[i].classList.add('updated-cell');
+                    }
+                }
+
+                // If status changed, update summary cards
+                if (result.status_changed) {
+                    // Update current open cases count
+                    const currentOpenCard = document.querySelector('.summary-card:nth-child(1) .summary-value');
+                    if (currentOpenCard) {
+                        currentOpenCard.textContent = result.current_open_count;
+                        currentOpenCard.classList.add('updated-cell');
+                    }
+
+                    // Update handled this week count
+                    const handledThisWeekCard = document.querySelector('.summary-card:nth-child(3) .summary-value');
+                    if (handledThisWeekCard) {
+                        handledThisWeekCard.textContent = result.current_handled_count;
+                        handledThisWeekCard.classList.add('updated-cell');
+                    }
+
+                    // If status changed to 'close', remove the row from the table
+                    if (result.status === 'close') {
+                        setTimeout(() => {
+                            row.style.opacity = '0';
+                            setTimeout(() => {
+                                row.remove();
+                            }, 300);
+                        }, 700);
+                    }
+                }
+
+                // Remove highlight after animation
+                setTimeout(() => {
+                    const updatedCells = document.querySelectorAll('.updated-cell');
+                    updatedCells.forEach(cell => cell.classList.remove('updated-cell'));
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating billable hours: ' + error.message);
+                cell.textContent = cell.dataset.originalValue;
+            }
+        } else {
+            cell.textContent = cell.dataset.originalValue;
+        }
+        
+        cell.classList.remove('editing');
+    }
+
+    // Edit additional days function
+    async function editAdditionalDays(cell, newValue) {
+        const row = cell.closest('tr');
+        const originalValue = parseFloat(cell.dataset.originalValue);
+        
+        // Validate input
+        if (isNaN(newValue) || newValue < 0) {
+            alert('Please enter a valid number greater than or equal to 0');
+            return;
+        }
+
+        if (newValue !== originalValue) {
+            try {
+                const response = await fetch('{% url "update_additional_days" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        id: row.dataset.id,
+                        additional_days: newValue
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update additional days');
+                }
+
+                // Update the additional days cell
+                cell.textContent = newValue.toFixed(1);
+                cell.classList.remove('editing');
+                cell.classList.add('updated-cell');
+
+                // Get header texts from table data attribute
+                const headerTexts = JSON.parse(cell.closest('table').dataset.headerTexts);
+
+                // Update related cells
+                const cells = row.cells;
+                for (let i = 0; i < cells.length; i++) {
+                    const header = headerTexts[i];
+                    if (header === 'Status') {
+                        cells[i].textContent = result.status;
+                        cells[i].classList.add('updated-cell');
+                    }
+                }
+                
+                // Update the capable utilization display
+                if (result.capable_utilization !== undefined) {
+                    const capableUtilElement = document.querySelector('.header-card:nth-child(3) .utilization-value');
+                    if (capableUtilElement) {
+                        capableUtilElement.textContent = result.capable_utilization.toFixed(3) + '%';
+                        capableUtilElement.classList.add('updated-cell');
+                    }
+                }
+
+                // If status changed, update summary cards
+                if (result.status_changed) {
+                    // Update current open cases count
+                    const currentOpenCard = document.querySelector('.summary-card:nth-child(1) .summary-value');
+                    if (currentOpenCard) {
+                        currentOpenCard.textContent = result.current_open_count;
+                        currentOpenCard.classList.add('updated-cell');
+                    }
+
+                    // Update handled this week count
+                    const handledThisWeekCard = document.querySelector('.summary-card:nth-child(3) .summary-value');
+                    if (handledThisWeekCard) {
+                        handledThisWeekCard.textContent = result.current_handled_count;
+                        handledThisWeekCard.classList.add('updated-cell');
+                    }
+
+                    // If status changed to 'close', remove the row from the table
+                    if (result.status === 'close') {
+                        setTimeout(() => {
+                            row.style.opacity = '0';
+                            setTimeout(() => {
+                                row.remove();
+                            }, 300);
+                        }, 700);
+                    }
+                }
+
+                // Remove highlight after animation
+                setTimeout(() => {
+                    const updatedCells = document.querySelectorAll('.updated-cell');
+                    updatedCells.forEach(cell => cell.classList.remove('updated-cell'));
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating additional days: ' + error.message);
+                cell.textContent = cell.dataset.originalValue;
+            }
+        } else {
+            cell.textContent = cell.dataset.originalValue;
+        }
+        
+        cell.classList.remove('editing');
+    }
+
+    // Handle search and filter dropdown
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchFilterBtn = document.getElementById('searchFilterBtn');
+        const searchFilterDropdown = document.getElementById('searchFilterDropdown');
+        const closeDropdown = document.getElementById('closeDropdown');
+        const resetFilters = document.getElementById('resetFilters');
+        const applyFilters = document.getElementById('applyFilters');
+        const resourceSearch = document.getElementById('resourceSearch');
+        const billingFilter = document.getElementById('billingFilter');
+        
+        if (searchFilterBtn) {
+            searchFilterBtn.addEventListener('click', function() {
+                searchFilterDropdown.classList.toggle('show');
+            });
+        }
+
+        if (closeDropdown) {
+            closeDropdown.addEventListener('click', function() {
+                searchFilterDropdown.classList.remove('show');
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const isClickInsideDropdown = searchFilterDropdown?.contains(event.target);
+            const isClickOnButton = searchFilterBtn?.contains(event.target);
+            
+            if (!isClickInsideDropdown && !isClickOnButton && searchFilterDropdown?.classList.contains('show')) {
+                searchFilterDropdown.classList.remove('show');
+            }
+        });
+
+        // Reset filters
+        if (resetFilters) {
+            resetFilters.addEventListener('click', function() {
+                if (resourceSearch) resourceSearch.value = '';
+                if (billingFilter) billingFilter.value = '';
+                
+                // Reset table display using our filterTable function
+                filterTable('', '');
+            });
+        }
+
+        // Apply filters
+        if (applyFilters) {
+            applyFilters.addEventListener('click', function() {
+                const resourceValue = resourceSearch?.value.toLowerCase() || '';
+                const billingValue = billingFilter?.value || '';
+                
+                filterTable(resourceValue, billingValue);
+                searchFilterDropdown.classList.remove('show');
+            });
+        }
+        
+        // Function to filter table
+        function filterTable(resource, billing) {
+            const table = document.querySelector('.table');
+            if (!table) return;
+
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const cells = row.getElementsByTagName('td');
+                if (cells.length === 0) return;
+                
+                const resourceCell = cells[1]; // Resource column
+                if (!resourceCell) return;
+                
+                // Find the billing column index
+                const headers = table.querySelectorAll('thead th');
+                const billingColumnIndex = Array.from(headers).findIndex(header => 
+                    header.textContent.trim() === 'Billing'
+                );
+                
+                const resourceText = resourceCell.textContent.trim().toLowerCase();
+                const billingText = billingColumnIndex !== -1 ? cells[billingColumnIndex].textContent.trim() : '';
+                
+                const matchesResource = !resource || resourceText.includes(resource);
+                const matchesBilling = !billing || billingText === billing;
+                
+                if (matchesResource && matchesBilling) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // Handle history button click
+    document.addEventListener('DOMContentLoaded', function() {
+        // ... existing code ...
+
+        // History modal functionality
+        const historyBtn = document.getElementById('historyBtn');
+        const historyModal = document.getElementById('historyModal');
+        const closeHistoryModal = document.getElementById('closeHistoryModal');
+        const historyDateFilter = document.getElementById('historyDateFilter');
+        const historyResourceFilter = document.getElementById('historyResourceFilter');
+        const historyActionFilter = document.getElementById('historyActionFilter');
+        const applyHistoryFilters = document.getElementById('applyHistoryFilters');
+        const historyTableBody = document.getElementById('historyTableBody');
+
+        // Open history modal
+        if (historyBtn) {
+            historyBtn.addEventListener('click', function() {
+                loadHistoryData();
+                historyModal.style.display = 'flex';
+            });
+        }
+
+        // Close history modal
+        if (closeHistoryModal) {
+            closeHistoryModal.addEventListener('click', function() {
+                historyModal.style.display = 'none';
+            });
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === historyModal) {
+                historyModal.style.display = 'none';
+            }
+        });
+
+        // Apply history filters
+        if (applyHistoryFilters) {
+            applyHistoryFilters.addEventListener('click', function() {
+                loadHistoryData();
+            });
+        }
+
+        // Load history data function
+        function loadHistoryData() {
+            const dateFilter = historyDateFilter?.value || '';
+            const resourceFilter = historyResourceFilter?.value || '';
+            const actionFilter = historyActionFilter?.value || '';
+            
+            // Show loading indicator
+            historyTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="history-empty-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading history data...</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            
+            // Fetch real data from the server
+            fetch(`/get-history-data/?date=${dateFilter}&resource=${encodeURIComponent(resourceFilter)}&action=${actionFilter}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Clear existing table content
+                historyTableBody.innerHTML = '';
+                
+                // Add data to the table
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(item => {
+                        // Determine badge class based on action
+                        let actionBadgeClass = 'history-action-updated';
+                        if (item.action === 'closed') {
+                            actionBadgeClass = 'history-action-closed';
+                        } else if (item.action === 'edited') {
+                            actionBadgeClass = 'history-action-edited';
+                        }
+                        
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${item.date}</td>
+                            <td><div class="text-truncate" style="max-width: 250px;" title="${item.resource}">${item.resource}</div></td>
+                            <td><span class="history-action-badge ${actionBadgeClass}">${item.action === 'closed' ? 'Closed' : item.action === 'edited' ? 'Edited' : 'Updated'}</span></td>
+                            <td><div class="text-truncate" style="max-width: 300px;" title="${item.details}">${item.details}</div></td>
+                            <td><div class="text-truncate" style="max-width: 150px;" title="${item.previousValue}">${item.previousValue}</div></td>
+                            <td><div class="text-truncate" style="max-width: 150px;" title="${item.newValue}">${item.newValue}</div></td>
+                        `;
+                        historyTableBody.appendChild(row);
+                    });
+                } else {
+                    // No data found
+                    historyTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6">
+                                <div class="history-empty-state">
+                                    <i class="fas fa-search"></i>
+                                    <p>No history data found matching the selected filters.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching history data:', error);
+                historyTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            <div class="history-empty-state">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <p>Error loading history data. Please try again.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        // Reset history filters
+        if (document.getElementById('resetHistoryFilters')) {
+            document.getElementById('resetHistoryFilters').addEventListener('click', function() {
+                if (historyDateFilter) historyDateFilter.value = '';
+                if (historyResourceFilter) historyResourceFilter.value = '';
+                if (historyActionFilter) historyActionFilter.value = '';
+                loadHistoryData();
+            });
+        }
+    });
+</script>
+{% endblock %}

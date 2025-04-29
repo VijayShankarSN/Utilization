@@ -1,0 +1,123 @@
+{% extends 'util_report/base.html' %}
+
+{% block title %}Upload Utilization Report{% endblock %}
+
+{% block content %}
+<div class="container py-5 d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+  <div class="card shadow-lg border-0" style="max-width: 520px; width: 100%; border-radius: 18px; background: var(--card-bg);">
+    <div class="card-header" style="border-radius: 18px 18px 0 0; background: linear-gradient(to right, var(--oracle-dark-blue), var(--oracle-light-blue));">
+      <span class="page-title mb-0" style="font-size:1.6rem; padding-bottom:0; margin-bottom:0; color: #fff;">Upload Utilization Report</span>
+    </div>
+    <div class="card-body px-5 py-4">
+      {% if error_message %}
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-circle me-2"></i>
+          {{ error_message }}
+        </div>
+      {% endif %}
+      <form method="post" enctype="multipart/form-data" id="uploadForm" action="{% url 'extract_data' %}">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label for="file" class="form-label fw-semibold" style="color: var(--oracle-dark-blue);">Select your PSRS sheet</label>
+          <input type="file" class="form-control" id="file" name="file" required accept=".xlsx,.xlsb,.xls,.xlsm" style="border-radius: 8px; border: 1.5px solid var(--oracle-medium-blue); background: var(--bg-custom); color: var(--text-custom);">
+          <div class="form-text" style="color: var(--oracle-gray-blue);">Supports XLSX, XLSB, XLS, XLSM files</div>
+        </div>
+        <div class="d-flex flex-column flex-md-row gap-3 align-items-center mb-3 justify-content-between">
+          <button type="submit" class="btn btn-primary px-4 flex-grow-1" style="font-size: 1.08rem;">
+            <i class="fas fa-upload me-2"></i> Process Report
+          </button>
+          <button type="button" class="btn btn-link p-0 flex-grow-0" id="openUserManual" style="white-space:nowrap; color: var(--oracle-medium-blue); font-weight: 600;">
+            <i class="fas fa-question-circle me-1"></i> User Manual
+          </button>
+        </div>
+      </form>
+      <div class="text-center mt-3 mb-2">
+        <span class="text-muted">or</span>
+      </div>
+      <div class="d-grid">
+        <a href="{% url 'view_reports' %}" class="btn btn-secondary" style="font-size: 1.05rem;">
+          <i class="fas fa-history me-2"></i> View Previous Reports
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- User Manual Mini Popup -->
+<div class="modal fade" id="userManualModal" tabindex="-1" aria-labelledby="userManualLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+    <div class="modal-content shadow-lg border-0" style="border-radius: 16px; background: var(--card-bg);">
+      <div class="modal-header py-2 px-3" style="border-bottom: 0; border-radius: 16px 16px 0 0; background: var(--oracle-light-blue);">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-book-open text-white"></i>
+          <h5 class="modal-title fs-6 fw-bold text-white mb-0" id="userManualLabel">User Manual</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3" style="font-size:1.01rem; color: var(--text-custom); max-height: 450px; overflow-y: auto;">
+        <div class="mb-3"><b>Overview:</b> The Utilization Report tool helps you analyze PSRS data to track resource allocation, billable hours, and utilization metrics.</div>
+        <div class="mb-3">
+          <b>How to Upload a Report:</b>
+          <ul class="ps-3 mb-1">
+            <li>Ensure your PSRS sheet is in XLSX, XLSB, XLS, or XLSM format.</li>
+            <li>Click the file input and select your file.</li>
+            <li>Click <b>Process Report</b> to analyze your data.</li>
+            <li>Wait for processing to complete.</li>
+          </ul>
+        </div>
+        <div class="mb-3">
+          <b>Viewing Results:</b>
+          <ul class="ps-3 mb-1">
+            <li>After processing, you'll be redirected to the results page.</li>
+            <li>The results page displays utilization metrics, billable hours, and other key data points.</li>
+            <li>You can save the report to the database for future reference.</li>
+          </ul>
+        </div>
+        <div class="mb-3">
+          <b>Previous Reports:</b>
+          <ul class="ps-3 mb-1">
+            <li>Click <b>View Previous Reports</b> to access saved reports.</li>
+            <li>Select a date from the dropdown to view reports from that period.</li>
+            <li>Filter reports by RDM, track, or other criteria as needed.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Troubleshooting:</b>
+          <ul class="ps-3 mb-1">
+            <li>If you encounter an error, check that your file is in the correct format.</li>
+            <li>Ensure your file contains all required data fields for proper analysis.</li>
+            <li>If processing takes too long, try again with a smaller file or contact support.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const userManualModal = document.getElementById('userManualModal');
+    
+    // Initialize the modal
+    const modal = new bootstrap.Modal(userManualModal);
+    
+    // Show modal when button is clicked
+    document.getElementById('openUserManual').addEventListener('click', function() {
+      modal.show();
+    });
+
+    // Ensure proper cleanup when modal is hidden
+    userManualModal.addEventListener('hidden.bs.modal', function () {
+      // Remove any lingering backdrop
+      const backdrop = document.querySelector('.modal-backdrop');
+      if (backdrop) {
+        backdrop.remove();
+      }
+      // Remove modal-open class from body
+      document.body.classList.remove('modal-open');
+      // Remove inline styles from body
+      document.body.removeAttribute('style');
+    });
+  });
+</script>
+{% endblock %}
+{% endblock %}
