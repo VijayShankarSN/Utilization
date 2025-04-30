@@ -19,4 +19,5 @@ urlpatterns = [
     path('get-history-data/', views.get_history_data, name='get_history_data'),
     path('get-utilization-data/', views.get_utilization_data, name='get_utilization_data'),
     path('get-low-utilization-resources/', views.get_low_utilization_resources, name='get_low_utilization_resources'),
+    path('get_rdm_summary/', views.get_rdm_summary, name='get_rdm_summary'),
 ]

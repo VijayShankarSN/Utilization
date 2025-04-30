@@ -7,7 +7,7 @@ from .forms import UploadFileForm
 from .utils import process_excel_file, get_available_dates, get_report_for_date
 from django.urls import reverse
 from .models import UtilizationReportModel, UtilizationHistoryModel
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET
 import json
 import pandas as pd
 from io import BytesIO
@@ -1704,4 +1704,122 @@ def update_additional_days(request):
         return JsonResponse({'success': False, 'error': 'Invalid additional days value'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+def calculate_rdm_dams_utilization(date):
+    """
+    Calculate and update RDM-wise DAMS utilization for a given date.
+    This function:
+    1. Groups resources by RDM
+    2. Calculates total_billed and wtd_capacity for each RDM
+    3. Calculates DAMS utilization for each RDM
+    4. Updates the database with the calculated values
+    """
+    # Get all reports for the date
+    reports = UtilizationReportModel.objects.filter(date=date)
+    
+    # Group by RDM and calculate totals
+    rdm_totals = {}
+    for report in reports:
+        rdm = report.rdm or 'Unassigned'
+        if rdm not in rdm_totals:
+            rdm_totals[rdm] = {
+                'total_billed': 0,
+                'total_capacity': 0
+            }
+        
+        rdm_totals[rdm]['total_billed'] += report.total_billed or 0
+        rdm_totals[rdm]['total_capacity'] += report.wtd_capacity or 0
+    
+    # Calculate DAMS utilization for each RDM
+    rdm_utilizations = {}
+    for rdm, totals in rdm_totals.items():
+        if totals['total_capacity'] > 0:
+            utilization = (totals['total_billed'] / totals['total_capacity']) * 100
+        else:
+            utilization = 0
+        rdm_utilizations[rdm] = round(utilization, 2)
+    
+    # Update all reports with their RDM's DAMS utilization
+    for report in reports:
+        rdm = report.rdm or 'Unassigned'
+        report.rdm_dams_utilization = rdm_utilizations.get(rdm, 0)
+        report.save()
+    
+    return rdm_utilizations
+
+@require_GET
+def get_rdm_summary(request):
+    """
+    AJAX endpoint to return RDM-wise summary as JSON for the selected date.
+    First calculates RDM-wise DAMS utilization if not already calculated.
+    """
+    selected_date = request.GET.get('date')
+    if not selected_date:
+        return JsonResponse({'error': 'No date provided'}, status=400)
+    
+    # Calculate RDM-wise DAMS utilization if not already done
+    calculate_rdm_dams_utilization(selected_date)
+    
+    # Get all reports for the date
+    reports = UtilizationReportModel.objects.filter(date=selected_date)
+    first_report = reports.first()
+    global_dams_utilization = first_report.dams_utilization if first_report else 0
+    global_capable_utilization = first_report.capable_utilization if first_report else 0
+    
+    # Group reports by RDM
+    rdm_data = {}
+    for report in reports:
+        rdm = report.rdm or 'Unassigned'
+        if rdm not in rdm_data:
+            rdm_data[rdm] = {
+                'resource_count': 0,
+                'billable_hours': 0,
+                'wtd_actuals': 0,
+                'addtnl_days': 0,
+                'partial': 0,
+                'billing': 0,
+                'next': 0,
+                'total_capacity': 0,
+                'total_billed': 0,
+                'rdm_dams_utilization': report.rdm_dams_utilization
+            }
+        
+        # Update counts
+        rdm_data[rdm]['resource_count'] += 1
+        rdm_data[rdm]['billable_hours'] += report.billable_hours or 0
+        rdm_data[rdm]['wtd_actuals'] += report.wtd_actuals or 0
+        rdm_data[rdm]['addtnl_days'] += report.addtnl_days or 0
+        rdm_data[rdm]['total_capacity'] += report.wtd_capacity or 0
+        rdm_data[rdm]['total_billed'] += report.total_billed or 0
+        
+        # Update billing type counts
+        if (report.billing or '').lower() == 'partial':
+            rdm_data[rdm]['partial'] += 1
+        if (report.billing or '').lower() == 'billing':
+            rdm_data[rdm]['billing'] += 1
+        if (report.billing or '').lower() == 'next':
+            rdm_data[rdm]['next'] += 1
+    
+    # Prepare summary rows
+    summary_rows = []
+    for rdm, vals in rdm_data.items():
+        summary_rows.append({
+            'rdm': rdm,
+            'resource_count': vals['resource_count'],
+            'billable_hours': vals['billable_hours'],
+            'wtd_actuals': vals['wtd_actuals'],
+            'addtnl_days': vals['addtnl_days'],
+            'dams_utilization': vals['rdm_dams_utilization'],  # Use pre-calculated RDM DAMS utilization
+            'partial': vals['partial'],
+            'billing': vals['billing'],
+            'next': vals['next'],
+            'total_capacity': vals['total_capacity'],
+            'total_billed': vals['total_billed']
+        })
+    
+    return JsonResponse({
+        'summary': summary_rows,
+        'global_dams_utilization': global_dams_utilization,
+        'global_capable_utilization': global_capable_utilization
+    })
 
