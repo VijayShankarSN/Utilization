@@ -630,6 +630,18 @@ class UtilizationReportGenerator:
             self.dfs['WTD']['Individual Utilization']
         ))
         
+        # Get WTD Capacity from WTD dataframe
+        wtd_capacity_map = dict(zip(
+            self.dfs['WTD']['Consultant Name'],
+            self.dfs['WTD']['WTD Capacity']
+        ))
+        
+        # Get Total Billed from WTD dataframe
+        total_billed_map = dict(zip(
+            self.dfs['WTD']['Consultant Name'],
+            self.dfs['WTD']['Billable Hours']
+        ))
+        
         # Prepare batch creation with list comprehension instead of looping
         try:
             records_to_save = []
@@ -650,14 +662,17 @@ class UtilizationReportGenerator:
                 last_week = safe_float(row.get('Last Week', row.get('last_week', 0)))
                 total_logged = billable_hours + vacation + last_week
                 
-                # Get individual utilization for this resource
+                # Get individual utilization, WTD capacity, and total billed for this resource
                 individual_utilization = safe_float(individual_util_map.get(resource_email, 0))
+                wtd_capacity = safe_float(wtd_capacity_map.get(resource_email, 0))
+                total_billed = safe_float(total_billed_map.get(resource_email, 0))
                 
                 # Create the model instance with safe gets for all fields and NaN handling
                 records_to_save.append(UtilizationReportModel(
                     resource_email_address=resource_email,
                     administrative=safe_float(row.get('Administrative', row.get('administrative', 0))),
                     billable_hours=billable_hours,
+                    total_billed=total_billed,  # Added total_billed field
                     department_mgmt=safe_float(row.get('Department Mgmt', row.get('department_mgmt', 0))),
                     investment=safe_float(row.get('Investment', row.get('investment', 0))),
                     presales=safe_float(row.get('Presales', row.get('presales', 0))),
@@ -666,21 +681,22 @@ class UtilizationReportGenerator:
                     vacation=vacation,
                     grand_total=safe_float(row.get('Grand Total', row.get('grand_total', 0))),
                     last_week=last_week,
-                    total_logged=total_logged,  # Added total_logged field
+                    total_logged=total_logged,
                     status=row.get('Status', row.get('status', 'open')) or 'open',
                     addtnl_days=safe_float(row.get('Additional Days', row.get('addtnl_days', 0))),
                     wtd_actuals=safe_float(row.get('WTD Actuals', row.get('wtd_actuals', 0))),
+                    wtd_capacity=wtd_capacity,
                     rdm=row.get('RDM', row.get('rdm', 'Adam')) or 'Adam',
                     track=row.get('Track', row.get('track', '')) or '',
                     billing=row.get('Billing', row.get('billing', 'TBD')) or 'TBD',
-                    spoc=row.get('RDM', row.get('rdm', 'Adam')) or 'Adam',  # SPOC is the same as RDM
+                    spoc=row.get('RDM', row.get('rdm', 'Adam')) or 'Adam',
                     comments=row.get('comments', '') or '',
                     spoc_comments=row.get('spoc_comments', '') or '',
                     date=file_date_parsed,
-                    dams_utilization=dams_utilization,  # Add DAMS utilization
-                    capable_utilization=capable_utilization,  # Add capable utilization
-                    individual_utilization=individual_utilization,  # Add individual utilization
-                    total_capacity=self.total_capacity  # Store total capacity for the date
+                    dams_utilization=dams_utilization,
+                    capable_utilization=capable_utilization,
+                    individual_utilization=individual_utilization,
+                    total_capacity=self.total_capacity
                 ))
             
         except Exception as e:

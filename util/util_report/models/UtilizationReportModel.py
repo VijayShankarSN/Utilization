@@ -5,6 +5,7 @@ class UtilizationReportModel(models.Model):
     resource_email_address = models.CharField(max_length=255)
     administrative = models.FloatField(default=0)
     billable_hours = models.FloatField(default=0)
+    total_billed = models.FloatField(default=0)
     department_mgmt = models.FloatField(default=0)
     investment = models.FloatField(default=0)
     presales = models.FloatField(default=0)
@@ -17,6 +18,7 @@ class UtilizationReportModel(models.Model):
     total_logged = models.FloatField(default=0)
     addtnl_days = models.FloatField(default=0)
     wtd_actuals = models.FloatField(default=0)
+    wtd_capacity = models.FloatField(default=0)
     spoc = models.CharField(max_length=255, null=True, blank=True)
     comments = models.TextField(null=True, blank=True)
     spoc_comments = models.TextField(null=True, blank=True)
@@ -28,6 +30,8 @@ class UtilizationReportModel(models.Model):
     capable_utilization = models.FloatField(default=0)
     individual_utilization = models.FloatField(default=0)
     total_capacity = models.FloatField(default=0)
+    rdm_dams_utilization = models.FloatField(default=0)
+    rdm_capable_utilization = models.FloatField(default=0)
 
 
     def __str__(self):
