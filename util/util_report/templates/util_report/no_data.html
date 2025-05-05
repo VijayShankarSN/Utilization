@@ -7,11 +7,15 @@
             <h4>No Data Available</h4>
         </div>
         <div class="card-body">
-            <p class="lead">No utilization reports found for {{ date }}.</p>
+            <p class="lead">
+                <i class="fas fa-database"></i>
+                No data available for the selected date: <strong>{{ selected_date }}</strong>
+            </p>
             <p>Please upload data for this date or select another date for which data is available.</p>
             
-            <div class="mt-4">
-                <a href="{% url 'upload' %}" class="btn btn-primary">Upload Reports</a>
+            <div class="mt-3">
+                <!-- <a href="{% url 'upload' %}" class="btn btn-primary">Upload Reports</a> -->
+                <a href="{% url 'view_reports' %}" class="btn btn-secondary">Select Different Date</a>
             </div>
             
             {% if debug_info %}

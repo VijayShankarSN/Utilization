@@ -2,29 +2,110 @@
 
 {% block title %}Confirm Update - Utilization Report{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Keep dark mode variables for reference, but simplify usage */
+    [data-bs-theme="dark"] {
+        --warning-bg-subtle: rgba(255, 193, 7, 0.15);
+        --warning-border-subtle: rgba(255, 193, 7, 0.3);
+        --action-card-header-bg: var(--bs-gray-700);
+    }
+    [data-bs-theme="light"] {
+         --warning-bg-subtle: var(--bs-warning-bg-subtle);
+         --warning-border-subtle: var(--bs-warning-border-color);
+         --action-card-header-bg: var(--bs-gray-100);
+    }
+
+    .confirm-update-container {
+        max-width: 800px; /* Slightly narrower */
+        margin: 2rem auto;
+    }
+
+    .confirm-card-header {
+        /* Use Bootstrap primary background */
+        background-color: var(--bs-primary);
+        color: var(--bs-light);
+    }
+
+    .warning-message {
+        /* Use Bootstrap subtle warning styles */
+        background-color: var(--warning-bg-subtle);
+        border: 1px solid var(--warning-border-subtle);
+        color: var(--bs-warning-text-emphasis);
+        padding: 1rem;
+        border-radius: var(--bs-border-radius);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    .warning-message strong {
+         color: var(--bs-warning-text-emphasis);
+    }
+
+    .action-card {
+         border: 1px solid var(--bs-border-color);
+         border-radius: var(--bs-card-border-radius);
+         height: 100%;
+         display: flex;
+         flex-direction: column;
+         background-color: var(--bs-card-bg);
+    }
+
+    .action-card-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--bs-body-color);
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        background-color: var(--action-card-header-bg);
+    }
+
+    .action-card-body {
+        padding: 1.25rem;
+        color: var(--bs-body-color);
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+     .action-card-body p {
+        margin-bottom: 1.5rem;
+        color: var(--bs-secondary-color);
+    }
+
+    /* Let buttons use standard Bootstrap primary/secondary */
+    .back-button-container {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-  <div class="card">
-    <div class="card-header bg-primary text-white">
-      <h3>Duplicate Report Found</h3>
+<div class="confirm-update-container">
+  <div class="card confirm-card"> <!-- Use standard card -->
+    <div class="card-header confirm-card-header"> <!-- Use standard card-header -->
+      Duplicate Report Found
     </div>
-    <div class="card-body">
-      <div class="alert alert-warning">
+    <div class="card-body"> <!-- Use standard card-body -->
+      <div class="warning-message">
         <i class="fas fa-exclamation-triangle"></i>
-        A report for <strong>{{ report_date }}</strong> already exists in the database.
+        <span>A report for <strong>{{ report_date }}</strong> already exists in the database.</span>
       </div>
       
-      <p>What would you like to do?</p>
+      <p class="mb-4 text-body-secondary">What would you like to do?</p> <!-- Added text-body-secondary -->
       
-      <div class="row mt-4">
+      <div class="row g-3"> <!-- Reduced gap slightly -->
         <div class="col-md-6">
-          <div class="card mb-3">
-            <div class="card-header bg-info text-white">
+          <div class="action-card">
+            <div class="action-card-header">
               View Existing Report
             </div>
-            <div class="card-body">
+            <div class="action-card-body">
               <p>View the existing report data that was previously uploaded.</p>
-              <a href="{% url 'view_reports' %}?date={{ report_date }}" class="btn btn-info btn-block">
+              <a href="{% url 'view_reports' %}?date={{ report_date }}" class="btn btn-secondary w-100"> <!-- Use btn-secondary -->
                 <i class="fas fa-eye"></i> View Existing Report
               </a>
             </div>
@@ -32,16 +113,16 @@
         </div>
         
         <div class="col-md-6">
-          <div class="card mb-3">
-            <div class="card-header bg-warning">
+          <div class="action-card">
+            <div class="action-card-header">
               Update with New Data
             </div>
-            <div class="card-body">
+            <div class="action-card-body">
               <p>Replace the existing data with the information from the current file.</p>
-              <form method="post" action="{% url 'extract_data' %}">
+              <form method="post" action="{% url 'extract_data' %}" class="d-grid"> 
                 {% csrf_token %}
                 <input type="hidden" name="confirm_update" value="true">
-                <button type="submit" class="btn btn-warning btn-block">
+                <button type="submit" class="btn btn-primary"> <!-- Use btn-primary -->
                   <i class="fas fa-sync-alt"></i> Update with New Data
                 </button>
               </form>
@@ -50,9 +131,9 @@
         </div>
       </div>
       
-      <div class="mt-3">
-        <a href="{% url 'upload' %}" class="btn btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back to Upload
+      <div class="back-button-container">
+        <a href="{% url 'view_reports' %}" class="btn btn-outline-secondary"> <!-- Changed from 'upload' to 'view_reports' -->
+          <i class="fas fa-arrow-left"></i> Back to View Reports
         </a>
       </div>
     </div>

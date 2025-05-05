@@ -6,16 +6,12 @@
         <div class="card-header bg-danger text-white">
             <h4>Error Viewing Reports</h4>
         </div>
-        <div class="card-body">
-            <p class="lead">An error occurred while trying to view reports for {{ date }}:</p>
-            <div class="alert alert-danger">
-                {{ error }}
-            </div>
-            <p>This might be due to a database schema mismatch. Please check that your database schema matches your Django models.</p>
-            
-            <div class="mt-4">
-                <a href="{% url 'upload' %}" class="btn btn-primary">Return to Upload</a>
-            </div>
+        <div class="card-body text-center">
+            <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+            <h5 class="card-title">An Error Occurred</h5>
+            <p class="card-text">{{ error }}</p>
+            <p class="card-text text-muted">Date: {{ date|default:"N/A" }}</p>
+            <a href="{% url 'view_reports' %}" class="btn btn-primary">Return to View Reports</a>
             
             {% if debug_info %}
             <div class="mt-5">

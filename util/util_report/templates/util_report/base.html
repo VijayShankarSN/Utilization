@@ -732,12 +732,6 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'extract_data' %}" class="nav-link">
-                                    <i class="fas fa-calendar-week"></i>
-                                    <span>Weekly Reports</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
                                 <a href="{% url 'util_leakage' %}" class="nav-link">
                                     <i class="fas fa-exclamation-triangle"></i>
                                     <span>Util Leakage</span>
@@ -900,5 +894,36 @@
             }
         });
     </script>
+
+    <!-- Upload Report Modal (Shared) -->
+    <div class="modal fade" id="uploadReportModal" tabindex="-1" aria-labelledby="uploadReportModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="uploadReportModalLabel">Upload Utilization Report</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+             <form method="post" enctype="multipart/form-data" id="modalUploadForm" action="{% url 'extract_data' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                  <label for="modalFile" class="form-label fw-semibold">Select PSRS sheet</label>
+                  <input type="file" class="form-control" id="modalFile" name="file" required accept=".xlsx,.xlsb,.xls,.xlsm">
+                  <div class="form-text">Supports XLSX, XLSB, XLS, XLSM files</div>
+                </div>
+                <div class="d-grid">
+                     <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i> Process Report
+                    </button>
+                </div>
+              </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 </body>
 </html>

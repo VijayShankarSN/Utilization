@@ -22,6 +22,11 @@ from django.conf import settings
 import logging
 from django.db import models
 import random
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.styles import Alignment, Font, Border, Side
+import openpyxl.utils
+from openpyxl.styles import PatternFill
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -48,16 +53,6 @@ def cleanup_files():
             except Exception as e:
                 print(f"Error deleting file {file_path}: {e}")
                 del files_to_cleanup[file_path]
-
-def upload_file(request):
-    """
-    Main landing page with file upload form.
-    """
-    dates = get_available_dates()
-    return render(request, 'util_report/upload.html', {
-        'dates': dates,
-        'upload_form': UploadFileForm()
-    })
 
 def save_to_database_background(file_path, report_date=None, request=None):
     """
@@ -114,11 +109,11 @@ def extract_data_view(request):
         # Get the file path from session
         file_path = request.session.get('temp_file_path')
         if not file_path:
-            return render(request, 'util_report/upload.html', {
-                'error_message': "File session expired. Please upload again.",
-                'upload_form': UploadFileForm(),
-                'dates': get_available_dates()
-            })
+            # Redirect back with an error message if file session expired
+            messages.error(request, "File session expired. Please upload again.")
+            # Try redirecting to referer, default to view_reports
+            referer = request.META.get('HTTP_REFERER', reverse('view_reports'))
+            return redirect(referer) 
         
         try:
             # Make a copy of the file to avoid file locking issues
@@ -128,11 +123,10 @@ def extract_data_view(request):
             try:
                 shutil.copy2(file_path, temp_copy_path)
             except Exception as e:
-                return render(request, 'util_report/upload.html', {
-                    'error_message': f"Error creating file copy: {str(e)}",
-                    'upload_form': UploadFileForm(),
-                    'dates': get_available_dates()
-                })
+                # Redirect back with an error message if file copy fails
+                messages.error(request, f"Error processing uploaded file: {str(e)}")
+                referer = request.META.get('HTTP_REFERER', reverse('view_reports'))
+                return redirect(referer)
             
             # Get the date to clean existing data
             report_date = request.session.get('report_date')
@@ -207,11 +201,11 @@ def extract_data_view(request):
                 files_to_cleanup[file_path] = time.time()
             
             error_message = f"An error occurred while extracting data: {str(e)}"
-            return render(request, 'util_report/upload.html', {
-                'error_message': error_message,
-                'upload_form': UploadFileForm(),
-                'dates': get_available_dates()
-            })
+            # Redirect back with the specific error message
+            logger.error(f"Error in extract_data_view (confirmation step): {error_message}", exc_info=True)
+            messages.error(request, error_message)
+            referer = request.META.get('HTTP_REFERER', reverse('view_reports'))
+            return redirect(referer)
     
     # Normal file upload flow
     if request.method == 'POST' and request.FILES.get('file'):
@@ -231,11 +225,10 @@ def extract_data_view(request):
                 # Mark original file for cleanup
                 files_to_cleanup[full_file_path] = time.time()
                 
-                return render(request, 'util_report/upload.html', {
-                    'error_message': f"Error creating file copy: {str(e)}",
-                    'upload_form': UploadFileForm(),
-                    'dates': get_available_dates()
-                })
+                # Redirect back with an error message if file copy fails (initial upload)
+                messages.error(request, f"Error preparing uploaded file: {str(e)}")
+                referer = request.META.get('HTTP_REFERER', reverse('view_reports'))
+                return redirect(referer)
             
             # First process the file to determine its date without saving to DB
             report_generator = UtilizationReportGenerator(temp_copy_path)
@@ -330,16 +323,15 @@ def extract_data_view(request):
                 files_to_cleanup[full_file_path] = time.time()
             
             error_message = f"An error occurred while extracting data: {str(e)}"
-            return render(request, 'util_report/upload.html', {
-                'error_message': error_message,
-                'upload_form': UploadFileForm(),
-                'dates': get_available_dates()
-            })
+            # Redirect back with the specific error message (initial upload)
+            logger.error(f"Error in extract_data_view (initial upload): {error_message}", exc_info=True)
+            messages.error(request, error_message)
+            referer = request.META.get('HTTP_REFERER', reverse('view_reports'))
+            return redirect(referer)
 
-    return render(request, 'util_report/upload.html', {
-        'upload_form': UploadFileForm(),
-        'dates': get_available_dates()
-    })
+    # If it's a GET request or POST without a file, redirect to view_reports
+    # (since there's no dedicated upload page anymore)
+    return redirect(reverse('view_reports'))
 
 def view_reports(request):
     """
@@ -609,25 +601,100 @@ def update_comments(request):
 
 def download_result(request):
     """
-    Download current session's report as Excel.
+    Download current session's report as Excel with styling.
     """
     try:
+        if 'report_data' not in request.session:
+            return HttpResponse("No report data found in session.", status=404)
+
+        report_df = pd.read_json(request.session['report_data'])
+        columns_to_include = [
+            'resource_email_address', 'administrative', 'billable_hours',
+            'department_mgmt', 'investment', 'presales', 'training',
+            'unassigned', 'vacation', 'grand_total', 'last_week',
+            'total_logged', 'addtnl_days', 'rdm', 'track', 'billing',
+            'status', 'date'
+        ]
+        # Ensure only existing columns are selected
+        columns_to_include = [col for col in columns_to_include if col in report_df.columns]
+        report_df = report_df[columns_to_include]
+        report_df = report_df.fillna('') # Replace NaN with empty string for Excel
+
+        # Create Excel workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Utilization Report'
+
+        # Hide grid lines
+        ws.sheet_view.showGridLines = False
+
+        # Define styles
+        thin_border = Border(left=Side(style='thin'), 
+                             right=Side(style='thin'), 
+                             top=Side(style='thin'), 
+                             bottom=Side(style='thin'))
+
+        # Insert Oracle logo
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'Oracle-Logo.png')
+        if os.path.exists(logo_path):
+            img = XLImage(logo_path)
+            img.height = 50
+            img.width = 150
+            ws.add_image(img, 'A1')
+            ws.row_dimensions[1].height = 40 
+        else:
+            ws['A1'] = "Logo not found"
+
+        # Add confidential text
+        # Adjust column span based on the actual number of columns
+        max_col_letter_title = openpyxl.utils.get_column_letter(len(columns_to_include)) 
+        ws.merge_cells(f'B1:{max_col_letter_title}1') 
+        cell = ws['B1']
+        cell.value = 'Confidential - Oracle Restricted'
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.font = Font(bold=True, color='FF0000', size=14)
+
+        # Start table data from row 3
+        start_row = 3 
+
+        # Write table headers
+        headers = [col.replace('_', ' ').title() for col in columns_to_include]
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=start_row, column=col_num, value=header)
+            cell.font = Font(bold=True)
+            cell.border = thin_border
+
+        # Write data rows
+        current_row = start_row + 1
+        for _, row_data in report_df.iterrows():
+            for col_num, value in enumerate(row_data, 1):
+                 # Convert potential Timestamp objects to string
+                 if isinstance(value, pd.Timestamp):
+                    value = value.strftime('%Y-%m-%d') 
+                 cell = ws.cell(row=current_row, column=col_num, value=value)
+                 cell.border = thin_border
+            current_row += 1
+
+        # Set column widths
+        for i in range(len(headers)):
+            max_length = 0
+            column_letter = openpyxl.utils.get_column_letter(i + 1)
+            max_length = len(str(ws.cell(row=start_row, column=i+1).value))
+            for row_idx in range(start_row + 1, current_row):
+                cell = ws.cell(row=row_idx, column=i + 1)
+                try:
+                    if cell.value is not None:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            adjusted_width = max_length + 3
+            ws.column_dimensions[column_letter].width = adjusted_width
+
+        # Prepare response
         output = BytesIO()
-        
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            if 'report_data' in request.session:
-                report_df = pd.read_json(request.session['report_data'])
-                columns = [
-                    'resource_email_address', 'administrative', 'billable_hours',
-                    'department_mgmt', 'investment', 'presales', 'training',
-                    'unassigned', 'vacation', 'grand_total', 'last_week',
-                    'total_logged', 'addtnl_days', 'rdm', 'track', 'billing',
-                    'status', 'date'
-                ]
-                report_df = report_df[columns]
-                report_df.to_excel(writer, sheet_name='Utilization Report', index=False)
-        
+        wb.save(output)
         output.seek(0)
+
         response = HttpResponse(
             output.getvalue(),
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -637,26 +704,34 @@ def download_result(request):
         
         return response
     except Exception as e:
+        # Log the error for debugging
+        logger.error(f"Error generating session Excel file: {str(e)}", exc_info=True)
         return HttpResponse(f"Error generating Excel file: {str(e)}", status=500)
 
 def download_report(request):
     """
-    Download specific date's report as Excel.
+    Download specific date's report as Excel with styling.
     """
     date = request.GET.get('date')
     if not date:
         return HttpResponse("No date selected", status=400)
 
     try:
-        # Get all records for the date
         reports = UtilizationReportModel.objects.filter(date=date)
-        
         if not reports.exists():
             return HttpResponse("No data found for selected date", status=404)
         
+        # Define the columns we want in the final report
+        columns_in_order = [
+            'Resource Email Address', 'Administrative', 'Billable Hours', 'Department Mgmt', 
+            'Training', 'Unassigned', 'Vacation', 'Grand Total', 'Last Week', 
+            'Total Logged', 'Additional Days', 'WTD Actuals', 'RDM', 'Track', 
+            'Billing', 'Status', 'Comments', 'SPOC Comments'
+        ]
+
         data = []
         for report in reports:
-            data.append({
+            report_data = {
                 'Resource Email Address': report.resource_email_address,
                 'Administrative': report.administrative or 0,
                 'Billable Hours': report.billable_hours or 0,
@@ -675,27 +750,89 @@ def download_report(request):
                 'Status': report.status or 'open',
                 'Comments': report.comments or '',
                 'SPOC Comments': report.spoc_comments or ''
-            })
+            }
+            # Ensure all desired columns are present, even if None in the model for some rows
+            ordered_data = {col: report_data.get(col, '') for col in columns_in_order}
+            data.append(ordered_data)
         
         # Create DataFrame and format numeric columns
         df = pd.DataFrame(data)
         numeric_columns = ['Administrative', 'Billable Hours', 'Department Mgmt', 'Training',
                          'Unassigned', 'Vacation', 'Grand Total', 'Last Week', 'Total Logged',
                          'Additional Days', 'WTD Actuals']
-        
         for col in numeric_columns:
             if col in df.columns:
-                df[col] = df[col].round(2)
-        
-        # Create Excel file
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Report')
-        
+                 # Use apply with a lambda to safely convert to float and round, handling errors
+                df[col] = df[col].apply(lambda x: round(float(x), 2) if pd.notna(x) and isinstance(x, (int, float)) else x)
+        df = df.fillna('') # Replace any remaining NaN/None
+
+        # --- Start openpyxl styling --- 
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Full Report'
+        ws.sheet_view.showGridLines = False
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+        # Logo
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'Oracle-Logo.png')
+        if os.path.exists(logo_path):
+            img = XLImage(logo_path)
+            img.height = 50
+            img.width = 150
+            ws.add_image(img, 'A1')
+            ws.row_dimensions[1].height = 40 
+        else:
+            ws['A1'] = "Logo not found"
+
+        # Title
+        max_col_letter_title = openpyxl.utils.get_column_letter(len(columns_in_order))
+        ws.merge_cells(f'B1:{max_col_letter_title}1')
+        cell = ws['B1']
+        cell.value = 'Confidential - Oracle Restricted'
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.font = Font(bold=True, color='FF0000', size=14)
+
+        start_row = 3
+
+        # Headers
+        headers = columns_in_order # Use the defined order
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=start_row, column=col_num, value=header)
+            cell.font = Font(bold=True)
+            cell.border = thin_border
+
+        # Data rows
+        current_row = start_row + 1
+        # Iterate through DataFrame rows using the ordered columns
+        for _, row_data in df[columns_in_order].iterrows(): 
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=current_row, column=col_num, value=value)
+                cell.border = thin_border
+            current_row += 1
+
+        # Column widths
+        for i in range(len(headers)):
+            max_length = 0
+            column_letter = openpyxl.utils.get_column_letter(i + 1)
+            max_length = len(str(ws.cell(row=start_row, column=i+1).value))
+            for row_idx in range(start_row + 1, current_row):
+                cell = ws.cell(row=row_idx, column=i + 1)
+                try:
+                    if cell.value is not None:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            adjusted_width = max_length + 3
+            ws.column_dimensions[column_letter].width = adjusted_width
+        # --- End openpyxl styling --- 
+
         # Prepare response
+        output = BytesIO()
+        wb.save(output)
         output.seek(0)
+
         response = HttpResponse(
-            output.read(),
+            output.getvalue(), # Use getvalue() for BytesIO
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         response['Content-Disposition'] = f'attachment; filename=utilization_report_{date}.xlsx'
@@ -703,6 +840,7 @@ def download_report(request):
         return response
         
     except Exception as e:
+        logger.error(f"Error generating full report Excel for date {date}: {str(e)}", exc_info=True)
         return HttpResponse(f"Error generating report: {str(e)}", status=500)
 
 def util_leakage(request):
@@ -851,60 +989,114 @@ def util_leakage(request):
 
 def download_util_leakage(request):
     """
-    Download utilization leakage report as Excel.
+    Download utilization leakage report as Excel with styling.
     """
     date = request.GET.get('date')
     if not date:
         return HttpResponse("No date selected", status=400)
 
     try:
-        # Get the field names from the model to check what fields exist
-        model_fields = [f.name for f in UtilizationReportModel._meta.get_fields()]
-        
-        # Create a list of fields that exist in the model - exclude specified fields
-        fields_to_retrieve = ['resource_email_address']
-        for field in ['administrative', 'billable_hours', 'department_mgmt', 'training', 'unassigned', 
-                    'vacation', 'grand_total', 'status', 'addtnl_days', 
-                    'wtd_actuals', 'rdm', 'track', 'billing']:
-            if field in model_fields:
-                fields_to_retrieve.append(field)
-        
-        # Query with only the fields that exist
+        # Define the columns and their desired headers for the report
+        column_mapping = {
+            'resource_email_address': 'Name',
+            'administrative': 'Administrative',
+            'billable_hours': 'Billable Days', # Note: Header is 'Billable Days'
+            'department_mgmt': 'Department Mgmt',
+            'training': 'Training',
+            'unassigned': 'Unassigned',
+            'vacation': 'Vacation',
+            'grand_total': 'Grand Total',
+            'status': 'Status',
+            'addtnl_days': 'Additional Days',
+            'wtd_actuals': 'WTD Actual', # Note: Header is 'WTD Actual'
+            'rdm': 'RDM',
+            'track': 'Track',
+            'billing': 'Billing'
+        }
+        model_fields_to_fetch = list(column_mapping.keys())
+        report_headers = list(column_mapping.values())
+
+        # Query open cases for the selected date
         reports = UtilizationReportModel.objects.filter(
             date=date,
             status='open'
-        ).values(*fields_to_retrieve)
-        
-        data = []
-        for report in reports:
-            entry = {
-                'Name': report['resource_email_address'],
-                'Administrative': report.get('administrative', 0),
-                'Billable Days': report.get('billable_hours', 0),
-                'Department Mgmt': report.get('department_mgmt', 0),
-                'Training': report.get('training', 0),
-                'Unassigned': report.get('unassigned', 0),
-                'Vacation': report.get('vacation', 0),
-                'Grand Total': report.get('grand_total', 0),
-                'Status': report.get('status', 'open'),
-                'Additional Days': report.get('addtnl_days', 0),
-                'WTD Actual': report.get('wtd_actuals', 0),
-                'RDM': report.get('rdm', ''),
-                'Track': report.get('track', ''),
-                'Billing': report.get('billing', '')
-            }
-            data.append(entry)
-        
-        if not data:
+        ).values(*model_fields_to_fetch)
+
+        if not reports:
             return HttpResponse("No utilization leakage data found for the selected date", status=404)
-        
-        df = pd.DataFrame(data)
-        
+
+        # --- Start openpyxl styling --- 
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Util Leakage Report'
+        ws.sheet_view.showGridLines = False
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+        # Logo
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'Oracle-Logo.png')
+        if os.path.exists(logo_path):
+            img = XLImage(logo_path)
+            img.height = 50
+            img.width = 150
+            ws.add_image(img, 'A1')
+            ws.row_dimensions[1].height = 40 
+        else:
+            ws['A1'] = "Logo not found"
+
+        # Title
+        max_col_letter_title = openpyxl.utils.get_column_letter(len(report_headers))
+        ws.merge_cells(f'B1:{max_col_letter_title}1')
+        cell = ws['B1']
+        cell.value = 'Confidential - Oracle Restricted'
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.font = Font(bold=True, color='FF0000', size=14)
+
+        start_row = 3
+
+        # Headers
+        for col_num, header in enumerate(report_headers, 1):
+            cell = ws.cell(row=start_row, column=col_num, value=header)
+            cell.font = Font(bold=True)
+            cell.border = thin_border
+
+        # Data rows
+        current_row = start_row + 1
+        for report_data in reports: # reports is already a list of dicts from .values()
+            for col_num, model_field in enumerate(model_fields_to_fetch, 1):
+                value = report_data.get(model_field, '')
+                 # Format numerics safely
+                if model_field in ['administrative', 'billable_hours', 'department_mgmt', 'training', 
+                                    'unassigned', 'vacation', 'grand_total', 'addtnl_days', 'wtd_actuals']:
+                    try:
+                        value = round(float(value), 2) if pd.notna(value) else 0
+                    except (ValueError, TypeError):
+                        value = 0 # Default to 0 if conversion fails
+                
+                cell = ws.cell(row=current_row, column=col_num, value=value)
+                cell.border = thin_border
+            current_row += 1
+
+        # Column widths
+        for i in range(len(report_headers)):
+            max_length = 0
+            column_letter = openpyxl.utils.get_column_letter(i + 1)
+            max_length = len(str(ws.cell(row=start_row, column=i+1).value))
+            for row_idx in range(start_row + 1, current_row):
+                cell = ws.cell(row=row_idx, column=i + 1)
+                try:
+                    if cell.value is not None:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            adjusted_width = max_length + 3
+            ws.column_dimensions[column_letter].width = adjusted_width
+        # --- End openpyxl styling --- 
+
+        # Prepare response
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Util Leakage Report', index=False)
-        
+        wb.save(output)
         output.seek(0)
+
         response = HttpResponse(
             output.getvalue(),
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -913,6 +1105,7 @@ def download_util_leakage(request):
         
         return response
     except Exception as e:
+        logger.error(f"Error generating Util Leakage Excel for date {date}: {str(e)}", exc_info=True)
         return HttpResponse(f"Error generating Excel file: {str(e)}", status=500)
 
 def date_extraction(request, extraction_date=None):
@@ -932,8 +1125,8 @@ def date_extraction(request, extraction_date=None):
     # Check if file exists
     if not os.path.exists(file_path):
         messages.error(request, f"No file found for date {selected_date}")
-        # Redirect to upload page if file not found
-        return redirect('upload')
+        # Redirect to view_reports page if file not found
+        return redirect('view_reports') 
     
     try:
         # Check if data already exists for this date
@@ -1005,7 +1198,7 @@ def date_extraction(request, extraction_date=None):
     except Exception as e:
         error_msg = str(e)
         messages.error(request, f'Error extracting data: {error_msg}')
-        return redirect('upload')
+        return redirect('view_reports')
 
 @require_http_methods(["GET"])
 def get_history_data(request):
@@ -1705,13 +1898,13 @@ def update_additional_days(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
-def calculate_rdm_dams_utilization(date):
+def calculate_rdm_utilization(date):
     """
-    Calculate and update RDM-wise DAMS utilization for a given date.
+    Calculate and update RDM-wise DAMS and capable utilization for a given date.
     This function:
     1. Groups resources by RDM
-    2. Calculates total_billed and wtd_capacity for each RDM
-    3. Calculates DAMS utilization for each RDM
+    2. Calculates total_billed, wtd_capacity, and additional_days for each RDM
+    3. Calculates both DAMS and capable utilization for each RDM
     4. Updates the database with the calculated values
     """
     # Get all reports for the date
@@ -1724,25 +1917,34 @@ def calculate_rdm_dams_utilization(date):
         if rdm not in rdm_totals:
             rdm_totals[rdm] = {
                 'total_billed': 0,
-                'total_capacity': 0
+                'total_capacity': 0,
+                'total_additional_days': 0
             }
-        
         rdm_totals[rdm]['total_billed'] += report.total_billed or 0
         rdm_totals[rdm]['total_capacity'] += report.wtd_capacity or 0
+        rdm_totals[rdm]['total_additional_days'] += report.addtnl_days or 0
     
-    # Calculate DAMS utilization for each RDM
+    # Calculate DAMS and capable utilization for each RDM
     rdm_utilizations = {}
     for rdm, totals in rdm_totals.items():
         if totals['total_capacity'] > 0:
-            utilization = (totals['total_billed'] / totals['total_capacity']) * 100
+            # DAMS utilization: (total_billed / total_capacity) * 100
+            dams_utilization = (totals['total_billed'] / totals['total_capacity']) * 100
+            # Capable utilization: ((total_billed + (total_additional_days * 8)) / total_capacity) * 100
+            capable_utilization = ((totals['total_billed'] + (totals['total_additional_days'] * 8)) / totals['total_capacity']) * 100
         else:
-            utilization = 0
-        rdm_utilizations[rdm] = round(utilization, 2)
+            dams_utilization = 0
+            capable_utilization = 0
+        rdm_utilizations[rdm] = {
+            'dams': round(dams_utilization, 2),
+            'capable': round(capable_utilization, 2)
+        }
     
-    # Update all reports with their RDM's DAMS utilization
+    # Update all reports with their RDM's utilization values
     for report in reports:
         rdm = report.rdm or 'Unassigned'
-        report.rdm_dams_utilization = rdm_utilizations.get(rdm, 0)
+        report.rdm_dams_utilization = rdm_utilizations.get(rdm, {}).get('dams', 0)
+        report.rdm_capable_utilization = rdm_utilizations.get(rdm, {}).get('capable', 0)
         report.save()
     
     return rdm_utilizations
@@ -1758,7 +1960,7 @@ def get_rdm_summary(request):
         return JsonResponse({'error': 'No date provided'}, status=400)
     
     # Calculate RDM-wise DAMS utilization if not already done
-    calculate_rdm_dams_utilization(selected_date)
+    calculate_rdm_utilization(selected_date)
     
     # Get all reports for the date
     reports = UtilizationReportModel.objects.filter(date=selected_date)
@@ -1781,7 +1983,8 @@ def get_rdm_summary(request):
                 'next': 0,
                 'total_capacity': 0,
                 'total_billed': 0,
-                'rdm_dams_utilization': report.rdm_dams_utilization
+                'rdm_dams_utilization': report.rdm_dams_utilization,
+                'rdm_capable_utilization': report.rdm_capable_utilization
             }
         
         # Update counts
@@ -1810,6 +2013,7 @@ def get_rdm_summary(request):
             'wtd_actuals': vals['wtd_actuals'],
             'addtnl_days': vals['addtnl_days'],
             'dams_utilization': vals['rdm_dams_utilization'],  # Use pre-calculated RDM DAMS utilization
+            'capable_utilization': vals['rdm_capable_utilization'],  # Use pre-calculated RDM capable utilization
             'partial': vals['partial'],
             'billing': vals['billing'],
             'next': vals['next'],
@@ -1822,4 +2026,132 @@ def get_rdm_summary(request):
         'global_dams_utilization': global_dams_utilization,
         'global_capable_utilization': global_capable_utilization
     })
+
+@require_GET
+def download_rdm_summary_excel(request):
+    """
+    Download the RDM summary as an Excel file with Oracle logo and confidential text.
+    """
+    selected_date = request.GET.get('date')
+    if not selected_date:
+        return HttpResponse('No date provided', status=400)
+
+    # Calculate RDM-wise utilization
+    calculate_rdm_utilization(selected_date)
+    reports = UtilizationReportModel.objects.filter(date=selected_date)
+
+    # Prepare RDM summary data
+    rdm_data = {}
+    for report in reports:
+        rdm = report.rdm or 'Unassigned'
+        if rdm not in rdm_data:
+            rdm_data[rdm] = {
+                'resource_count': 0,
+                'billable_hours': 0,
+                'wtd_actuals': 0,
+                'addtnl_days': 0,
+                'total_capacity': 0,
+                'total_billed': 0,
+                'rdm_dams_utilization': report.rdm_dams_utilization,
+                'rdm_capable_utilization': report.rdm_capable_utilization
+            }
+        rdm_data[rdm]['resource_count'] += 1
+        rdm_data[rdm]['billable_hours'] += report.billable_hours or 0
+        rdm_data[rdm]['wtd_actuals'] += report.wtd_actuals or 0
+        rdm_data[rdm]['addtnl_days'] += report.addtnl_days or 0
+        rdm_data[rdm]['total_capacity'] += report.wtd_capacity or 0
+        rdm_data[rdm]['total_billed'] += report.total_billed or 0
+
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'RDM Summary'
+
+    # Hide grid lines
+    ws.sheet_view.showGridLines = False
+
+    # Define styles
+    thin_border = Border(left=Side(style='thin'), 
+                         right=Side(style='thin'), 
+                         top=Side(style='thin'), 
+                         bottom=Side(style='thin'))
+
+    # Insert Oracle logo using BASE_DIR from settings
+    logo_path = os.path.join(settings.BASE_DIR, 'static', 'Oracle-Logo.png') # Use BASE_DIR
+    if os.path.exists(logo_path):
+        img = XLImage(logo_path)
+        img.height = 50  # Adjusted height
+        img.width = 150  # Adjusted width
+        ws.add_image(img, 'A1')
+        # Set row height for the logo row
+        ws.row_dimensions[1].height = 40 
+    else:
+        ws['A1'] = "Logo not found" # Placeholder if logo missing
+
+
+    # Add confidential text centered at the top
+    ws.merge_cells('B1:I1') # Merge across more columns if needed
+    cell = ws['B1']
+    cell.value = 'Confidential - Oracle Restricted'
+    cell.alignment = Alignment(horizontal='center', vertical='center')
+    cell.font = Font(bold=True, color='FF0000', size=14)
+
+    # Start table data from row 3
+    start_row = 3 
+
+    # Write table headers
+    headers = [
+        'RDM', 'Resource Count', 'Billable Hours', 'WTD Actuals', 'Additional Days',
+        'Total Capacity', 'Total Billed', 'RDM DAMS Utilization (%)', 'RDM Capable Utilization (%)'
+    ]
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=start_row, column=col_num, value=header)
+        cell.font = Font(bold=True)
+        cell.border = thin_border # Apply border to header cells
+
+    # Write data rows
+    current_row = start_row + 1
+    for rdm, vals in rdm_data.items():
+        data_to_write = [
+            rdm,
+            vals['resource_count'],
+            round(vals['billable_hours'], 2),
+            round(vals['wtd_actuals'], 2),
+            round(vals['addtnl_days'], 2),
+            round(vals['total_capacity'], 2),
+            round(vals['total_billed'], 2),
+            vals['rdm_dams_utilization'],
+            vals['rdm_capable_utilization']
+        ]
+        for col_num, value in enumerate(data_to_write, 1):
+             cell = ws.cell(row=current_row, column=col_num, value=value)
+             cell.border = thin_border # Apply border to data cells
+        current_row += 1
+
+    # Set column widths for better appearance (adjust range as needed)
+    for i in range(len(headers)):
+        max_length = 0
+        column_letter = openpyxl.utils.get_column_letter(i + 1)
+        
+        # Check length of header first
+        max_length = len(str(ws.cell(row=start_row, column=i+1).value))
+
+        # Check length of data cells in that column
+        for row_idx in range(start_row + 1, current_row): # Iterate only through data rows
+            cell = ws.cell(row=row_idx, column=i + 1)
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except:
+                pass
+        
+        # Add padding
+        adjusted_width = max_length + 3 # Increased padding slightly
+        ws.column_dimensions[column_letter].width = adjusted_width
+
+    # Prepare response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=rdm_summary_{selected_date}.xlsx'
+    wb.save(response)
+    return response
 

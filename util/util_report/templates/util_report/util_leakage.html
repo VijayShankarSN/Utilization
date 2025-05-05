@@ -1273,9 +1273,12 @@
                         History
                     </button>
                     <a href="{% url 'download_util_leakage' %}?date={{ selected_date }}" class="download-button">
-                    <i class="fas fa-download"></i>
-                    Download Excel
-                </a>
+                        <i class="fas fa-download"></i>
+                        Download Excel
+                    </a>
+                    <button type="button" class="download-button" data-bs-toggle="modal" data-bs-target="#uploadReportModal">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
                 </div>
             </div>
             </div>
@@ -1443,6 +1446,8 @@
         </div>
     </div>
 </div>
+
+<!-- Upload Report Modal Removed - Defined in base.html -->
 
 <script>
     // Keeping all the existing JavaScript unchanged to preserve functionality

@@ -924,13 +924,15 @@
 
         <div class="header-card">
             <div class="header-card-title">Actions</div>
-            <div class="header-card-content">
+            <div class="header-card-content d-flex gap-2">
                 <a href="{% url 'download_report' %}?date={{ selected_date }}" class="download-button">
-                        <i class="fas fa-download"></i>
-                        Download Excel
-                    </a>
-                <button type="button" id="rdmWiseBtn" class="download-button" style="margin-left: 10px;">
-                    <i class="fas fa-table"></i> RDM-Wise Reports
+                    <i class="fas fa-download"></i> Excel
+                </a>
+                <button type="button" id="rdmWiseBtn" class="download-button">
+                    <i class="fas fa-table"></i> RDM-Wise
+                </button>
+                <button type="button" class="download-button" data-bs-toggle="modal" data-bs-target="#uploadReportModal">
+                    <i class="fas fa-upload"></i> Upload
                 </button>
             </div>
         </div>
@@ -1023,6 +1025,8 @@
                     </div>
                 {% endif %}
             </div>
+
+<!-- Upload Report Modal Removed - Defined in base.html -->
 
 <!-- RDM-Wise Summary Modal -->
 <div class="modal fade" id="rdmWiseModal" tabindex="-1" aria-labelledby="rdmWiseModalLabel" aria-hidden="true">
@@ -1300,31 +1304,44 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.summary && data.summary.length > 0) {
-                        let table = `<div class='table-responsive'><table class='table table-bordered table-striped'><thead><tr>
-                            <th>RDM</th>
-                            <th>Resource Count</th>
-                            <th>Billable Hours (MTD)</th>
-                            <th>WTD Actuals</th>
-                            <th>Additional Days</th>
-                            <th>DAMS Utilization</th>
-                            <th>Capable Utilization</th>
-                            <th>Partial Billing</th>
-                            <th>Full Billing</th>
-                            <th>Blocked (Next)</th>
-                        </tr></thead><tbody>`;
+                        // Define the desired header order
+                        let headers = [
+                            'RDM', 'DAMS Utilization', 'Capable Utilization', 'Partial Billing', 
+                            'Full Billing', 'Blocked (Next)', 'Resource Count', 
+                            'Billable Hours (MTD)', 'WTD Actuals', 'Additional Days'
+                        ];
+                        // Define the corresponding data keys in the desired order
+                        let dataKeys = [
+                            'rdm', 'dams_utilization', 'capable_utilization', 'partial', 
+                            'billing', 'next', 'resource_count', 
+                            'billable_hours', 'wtd_actuals', 'addtnl_days'
+                        ];
+                        // Map keys to functions for potential formatting (like toFixed)
+                        let formatters = {
+                             'billable_hours': (val) => val.toFixed(2),
+                             'wtd_actuals': (val) => val.toFixed(2),
+                             'addtnl_days': (val) => val.toFixed(2)
+                        };
+
+                        // Build table header
+                        let table = `<div class='table-responsive'><table class='table table-bordered table-striped'><thead><tr>`;
+                        headers.forEach(header => {
+                            table += `<th>${header}</th>`;
+                        });
+                        table += `</tr></thead><tbody>`;
+
+                        // Build table body rows
                         data.summary.forEach(row => {
-                            table += `<tr>
-                                <td>${row.rdm}</td>
-                                <td>${row.resource_count}</td>
-                                <td>${row.billable_hours.toFixed(2)}</td>
-                                <td>${row.wtd_actuals.toFixed(2)}</td>
-                                <td>${row.addtnl_days.toFixed(2)}</td>
-                                <td>${row.dams_utilization}</td>
-                                <td>${row.capable_utilization}</td>
-                                <td>${row.partial}</td>
-                                <td>${row.billing}</td>
-                                <td>${row.next}</td>
-                            </tr>`;
+                            table += `<tr>`;
+                            dataKeys.forEach(key => {
+                                let value = row[key];
+                                // Apply formatting if a formatter exists for this key
+                                if (formatters[key]) {
+                                    value = formatters[key](value);
+                                }
+                                table += `<td>${value}</td>`;
+                            });
+                            table += `</tr>`;
                         });
                         table += '</tbody></table></div>';
                         rdmWiseSummaryTable.innerHTML = table;
@@ -1341,7 +1358,8 @@
 
         // Download and Send Mails button stubs
         document.getElementById('downloadRdmSummary').addEventListener('click', function() {
-            alert('Download functionality to be implemented.');
+            // Redirect to the RDM summary Excel download endpoint
+            window.location.href = '{% url "download_rdm_summary_excel" %}?date=' + selectedDate;
         });
         document.getElementById('sendRdmSummary').addEventListener('click', function() {
             alert('Send Mails functionality to be implemented.');

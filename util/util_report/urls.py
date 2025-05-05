@@ -1,8 +1,10 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
+from django.views.generic import RedirectView
 
 urlpatterns = [
-    path('', views.upload_file, name='upload'),
+    # Redirect root path to view_reports
+    path('', RedirectView.as_view(pattern_name='view_reports', permanent=False), name='index'),
     path('extract/', views.extract_data_view, name='extract_data'),
     path('view-reports/', views.view_reports, name='view_reports'),
     path('util-leakage/', views.util_leakage, name='util_leakage'),
@@ -20,4 +22,6 @@ urlpatterns = [
     path('get-utilization-data/', views.get_utilization_data, name='get_utilization_data'),
     path('get-low-utilization-resources/', views.get_low_utilization_resources, name='get_low_utilization_resources'),
     path('get_rdm_summary/', views.get_rdm_summary, name='get_rdm_summary'),
+    path('download-rdm-summary/', views.download_rdm_summary_excel, name='download_rdm_summary_excel'),
+    # path('', views.upload_file, name='upload'), # Commented out - replaced by modal
 ]

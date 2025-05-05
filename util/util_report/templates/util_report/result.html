@@ -279,15 +279,19 @@
     {% endif %}
 
     <div class="text-center mb-4">
-        <a href="{% url 'view_reports' %}?date={{ current_date }}" class="action-button">
-            <i class="fas fa-table"></i> View Reports
-        </a>
-        <a href="{% url 'download_result' %}" class="action-button">
-            <i class="fas fa-download"></i> Download Excel
-        </a>
-        <a href="{% url 'upload' %}" class="action-button">
-            <i class="fas fa-upload"></i> Upload New File
-        </a>
+        <h1 class="page-title">Report Generated Successfully</h1>
+        <p class="page-subtitle">Data for {{ current_date }} has been processed. {% if saving_in_background %}Saving to database in the background...{% endif %}</p>
+        <div class="action-buttons">
+            <a href="{% url 'download_result' %}" class="action-button">
+                <i class="fas fa-download"></i> Download Report (Excel)
+            </a>
+            <a href="{% url 'view_reports' %}" class="action-button">
+                <i class="fas fa-eye"></i> View Reports
+            </a>
+            <a href="{% url 'view_reports' %}" class="action-button">
+                <i class="fas fa-upload"></i> Upload Another File
+            </a>
+        </div>
     </div>
 
     {% if has_data %}

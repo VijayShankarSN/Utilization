@@ -10,6 +10,7 @@ pandas>=2.2.0
 openpyxl>=3.1.2  # For .xlsx files
 pyxlsb>=1.0.10   # For .xlsb files
 xlrd>=2.0.1      # For .xls files
+Pillow>=10.0.0   # For image handling in openpyxl
 
 # HTML processing
 beautifulsoup4>=4.12.2  # For HTML parsing and manipulation
