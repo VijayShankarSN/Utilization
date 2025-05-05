@@ -21,4 +21,10 @@ numpy>=1.24.0
 
 # Optional but recommended
 django-debug-toolbar>=4.3.0  # For development debugging
-python-dotenv>=1.0.0        # For environment variables 
+python-dotenv>=1.0.0        # For environment variables
+
+# Deployment specific packages (for Render)
+gunicorn>=20.0.0
+whitenoise[brotli]>=6.0.0
+dj-database-url>=1.0.0
+psycopg2-binary>=2.9.0 
