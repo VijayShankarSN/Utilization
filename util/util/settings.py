@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from decouple import config
 
 
 
@@ -23,10 +24,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$+)w5i&t4di*wv5s5iwqej0rz(gab!h2c@vjo3*m&w)yzhkb3k'
+# Use python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())' to generate a new one for Render
+# Load SECRET_KEY from environment variable, fallback to default for development
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-h=l5#j%0=r&b*o#j!7&x$p=o(k*8+t0)@v6s8#q$z8i*b-z#n=')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Load DEBUG from environment variable, fallback to True for development
+DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = []
 
